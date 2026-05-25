@@ -1,0 +1,43 @@
+﻿-- Ecommify Database Design
+-- Paso 06: borrador tecnico para particionamiento de orders.
+-- Estado: documento de decision, no ejecutar junto con paso_02_crear_tablas_base.sql sin ajustar el modelo.
+--
+-- Decision del README: analizar particionamiento por fecha para soportar estrategia hot/cold.
+-- Advertencia PostgreSQL:
+--   Una PRIMARY KEY o UNIQUE en una tabla particionada debe incluir la clave de particion.
+--   Si orders se particiona por order_purchase_timestamp, una FK simple por order_id desde
+--   order_items u order_payments no alcanza sin redisenar claves o replicar la clave de particion.
+--
+-- Por eso, el paso 02 mantiene orders como tabla no particionada para conservar FKs simples.
+-- Este archivo queda como borrador para discutir antes del DDL final.
+
+SET search_path TO ecommify, public;
+
+-- Alternativa no activa:
+--
+-- CREATE TABLE orders_partitioned (
+--     order_id TEXT NOT NULL,
+--     customer_id TEXT NOT NULL REFERENCES customers(customer_id),
+--     order_status TEXT NOT NULL,
+--     order_purchase_timestamp TIMESTAMP NOT NULL,
+--     order_approved_at TIMESTAMP,
+--     order_delivered_carrier_date TIMESTAMP,
+--     order_delivered_customer_date TIMESTAMP,
+--     order_estimated_delivery_date TIMESTAMP,
+--     lifecycle JSONB NOT NULL DEFAULT '[]'::jsonb,
+--     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+--     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+--     PRIMARY KEY (order_id, order_purchase_timestamp)
+-- ) PARTITION BY RANGE (order_purchase_timestamp);
+--
+-- CREATE TABLE orders_2016 PARTITION OF orders_partitioned
+--     FOR VALUES FROM ('2016-01-01') TO ('2017-01-01');
+--
+-- CREATE TABLE orders_2017 PARTITION OF orders_partitioned
+--     FOR VALUES FROM ('2017-01-01') TO ('2018-01-01');
+--
+-- CREATE TABLE orders_2018 PARTITION OF orders_partitioned
+--     FOR VALUES FROM ('2018-01-01') TO ('2019-01-01');
+--
+-- CREATE TABLE orders_future PARTITION OF orders_partitioned
+--     DEFAULT;
