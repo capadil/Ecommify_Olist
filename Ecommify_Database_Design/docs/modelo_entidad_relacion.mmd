@@ -1,0 +1,119 @@
+erDiagram
+    CUSTOMERS ||--o{ ORDERS : "realiza"
+    ORDERS ||--|{ ORDER_ITEMS : "contiene"
+    PRODUCTS ||--o{ ORDER_ITEMS : "aparece_en"
+    SELLERS ||--o{ ORDER_ITEMS : "vende"
+    ORDERS ||--o{ ORDER_PAYMENTS : "tiene"
+    ORDERS ||--o{ ORDER_REVIEWS : "recibe"
+    CATEGORY_TRANSLATION ||--o{ PRODUCTS : "clasifica"
+    GEOLOCATION_CLEAN ||--o{ CUSTOMERS : "ubica_clientes"
+    GEOLOCATION_CLEAN ||--o{ SELLERS : "ubica_vendedores"
+
+    CUSTOMERS {
+        bigint customer_sk
+        string customer_id
+        string customer_unique_id
+        int customer_zip_code_prefix
+        string customer_city
+        string customer_state
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ORDERS {
+        bigint order_sk
+        string order_id
+        bigint customer_sk
+        string order_status
+        timestamp order_purchase_timestamp
+        timestamp order_approved_at
+        timestamp order_delivered_carrier_date
+        timestamp order_delivered_customer_date
+        timestamp order_estimated_delivery_date
+        jsonb lifecycle
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ORDER_ITEMS {
+        bigint order_item_sk
+        bigint order_sk
+        int order_item_id
+        bigint product_sk
+        bigint seller_sk
+        timestamp shipping_limit_date
+        decimal price
+        decimal freight_value
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ORDER_PAYMENTS {
+        bigint payment_sk
+        bigint order_sk
+        int payment_sequential
+        string payment_type
+        int payment_installments
+        decimal payment_value
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    PRODUCTS {
+        bigint product_sk
+        string product_id
+        bigint category_sk
+        int product_name_lenght
+        int product_description_lenght
+        int product_photos_qty
+        int product_weight_g
+        int product_length_cm
+        int product_height_cm
+        int product_width_cm
+        jsonb specifications
+        text_array photo_urls
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    CATEGORY_TRANSLATION {
+        bigint category_sk
+        string product_category_name
+        string product_category_name_english
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    SELLERS {
+        bigint seller_sk
+        string seller_id
+        int seller_zip_code_prefix
+        string seller_city
+        string seller_state
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    ORDER_REVIEWS {
+        bigint review_sk
+        string review_id
+        bigint order_sk
+        int review_score
+        string review_comment_title
+        string review_comment_message
+        timestamp review_creation_date
+        timestamp review_answer_timestamp
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    GEOLOCATION_CLEAN {
+        bigint geolocation_sk
+        int geolocation_zip_code_prefix
+        decimal geolocation_lat
+        decimal geolocation_lng
+        string geolocation_city
+        string geolocation_state
+        timestamp created_at
+        timestamp updated_at
+    }

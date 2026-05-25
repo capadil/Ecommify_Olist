@@ -1,31 +1,77 @@
 # Ecommify Database Design
 
-## Estructura esperada del repositorio
+## Estructura actual del proyecto
 
 ```text
 Ecommify_Database_Design/
 |-- README.md
 |-- docs/
-|   |-- Documento_Tecnico_Diseno.pdf
-|   `-- Presentacion_Ejecutiva.pdf
+|   |-- Documento_Tecnico_Diseno_Etapa_2.md
+|   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
+|   |-- Modelo_Entidad_Relacion.md
+|   |-- modelo_entidad_relacion.mmd
+|   `-- pdf-style.css
 |-- postgresql/
-|   |-- schema/ (scripts DDL)
-|   |-- seed_data/
-|   `-- queries/
+|   |-- README.md
+|   |-- schema/
+|   |   |-- README.md
+|   |   |-- paso_01_crear_esquema.sql
+|   |   |-- paso_02_crear_tablas_base.sql
+|   |   |-- paso_03_crear_indices.sql
+|   |   |-- paso_04_crear_triggers_updated_at.sql
+|   |   |-- paso_05_crear_vistas_materializadas.sql
+|   |   `-- paso_06_borrador_particionamiento_orders.sql
+|   |-- queries/
+|   |   |-- README.md
+|   |   |-- paso_07_refrescar_vistas_materializadas.sql
+|   |   `-- paso_08_consultas_analiticas_ejemplo.sql
+|   `-- seed_data/
+|       `-- README.md
 |-- mongodb/
-|   `-- schema/
+|   |-- README.md
+|   |-- schema/
+|   |   |-- README.md
+|   |   `-- paso_09_crear_colecciones_validadores.js
+|   |-- queries/
+|   |   |-- README.md
+|   |   `-- paso_10_consultas_analiticas_ejemplo.js
+|   `-- seed_data/
+|       `-- README.md
 `-- notebooks/
     `-- Data_Exploration_Analysis.ipynb
 ```
 
+### Secuencia tecnica de artefactos
+
+| Orden | Carpeta / archivo | Proposito |
+|---|---|---|
+| 01 | `postgresql/schema/paso_01_crear_esquema.sql` | Crear el esquema `ecommify`. |
+| 02 | `postgresql/schema/paso_02_crear_tablas_base.sql` | Crear tablas base, llaves tecnicas, IDs Olist `TEXT UNIQUE`, restricciones y tipos avanzados. |
+| 03 | `postgresql/schema/paso_03_crear_indices.sql` | Crear indices para IDs Olist, FK internas, fechas, `JSONB` y arrays. |
+| 04 | `postgresql/schema/paso_04_crear_triggers_updated_at.sql` | Crear triggers de mantenimiento de `updated_at`. |
+| 05 | `postgresql/schema/paso_05_crear_vistas_materializadas.sql` | Crear vistas materializadas para analitica. |
+| 06 | `postgresql/schema/paso_06_borrador_particionamiento_orders.sql` | Alternativa tecnica de particionamiento de `orders` para evaluar el diseno fisico hot/cold. |
+| 07 | `postgresql/queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar o refrescar vistas materializadas despues de cargar datos. |
+| 08 | `postgresql/queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
+| 09 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
+| 10 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
+
+### Artefactos tecnicos
+
+- `docs/Documento_Tecnico_Diseno_Etapa_2.md`: documento tecnico editable del diseno conceptual y logico.
+- `docs/Documento_Tecnico_Diseno_Etapa_2.pdf`: version PDF del documento tecnico.
+- `docs/Modelo_Entidad_Relacion.md`: modelo entidad-relacion en Markdown.
+- `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
+- `docs/pdf-style.css`: estilos de exportacion PDF para tablas y bloques largos.
+- `postgresql/seed_data/` y `mongodb/seed_data/`: criterios tecnicos de carga y sincronizacion de datos.
 ## Indice
 
-- [Estructura esperada del repositorio](#estructura-esperada-del-repositorio)
-- [Etapa 1 - Investigacion: posibles cambios por resolver](#etapa-1---investigacion-posibles-cambios-por-resolver)
+- [Estructura actual del proyecto](#estructura-actual-del-proyecto)
+- [Etapa 1 - Investigacion y decisiones tecnicas](#etapa-1---investigacion-y-decisiones-tecnicas)
   - [Analisis de tipos avanzados en PostgreSQL](#1-analisis-de-tipos-avanzados-en-postgresql)
   - [Comparacion inicial: JSONB vs columnas normalizadas](#2-comparacion-inicial-jsonb-vs-columnas-normalizadas)
-  - [Cambios posibles derivados de este analisis](#3-cambios-posibles-derivados-de-este-analisis)
-  - [Preguntas para refinar en conjunto](#4-preguntas-para-refinar-en-conjunto)
+  - [Decisiones tecnicas derivadas del analisis](#3-decisiones-tecnicas-derivadas-del-analisis)
+  - [Discusiones tecnicas abiertas](#4-discusiones-tecnicas-abiertas)
   - [Modelado hibrido OLTP/OLAP](#5-modelado-hibrido-oltp--olap)
     - [Requisitos OLTP vs OLAP de Ecommify](#51-requisitos-oltp-vs-olap-de-ecommify)
     - [Particionamiento de orders por fecha](#52-particionamiento-de-orders-por-fecha)
@@ -50,8 +96,7 @@ Ecommify_Database_Design/
 - [Decision arquitectonica preliminar](#11-decision-arquitectonica-preliminar)
 - [Matriz de decision PostgreSQL vs MongoDB](#12-matriz-de-decision-postgresql-vs-mongodb)
   - [Ajustes aplicados desde la Etapa 1](#ajustes-aplicados-desde-la-etapa-1)
-- [Recomendaciones para la siguiente etapa](#13-recomendaciones-para-la-siguiente-etapa)
-- [Conclusion inicial](#14-conclusion-inicial)
+- [Conclusion tecnica inicial](#13-conclusion-tecnica-inicial)
 - [Primera Forma Normal - 1FN](#primera-forma-normal---1fn)
 - [Segunda Forma Normal - 2FN](#segunda-forma-normal---2fn)
 - [Tercera Forma Normal - 3FN](#tercera-forma-normal---3fn)
@@ -62,9 +107,9 @@ Ecommify_Database_Design/
 
 ---
 
-## Etapa 1 - Investigacion: posibles cambios por resolver
+## Etapa 1 - Investigacion y decisiones tecnicas
 
-Esta seccion se agrega como espacio de trabajo para refinar decisiones antes de convertirlas en el documento tecnico final. No reemplaza el analisis consolidado del EDA ni el modelo normalizado; funciona como marco de discusion para decidir que ajustes se deben incorporar en PostgreSQL y que informacion conviene dejar para MongoDB o vistas analiticas.
+Esta seccion documenta los criterios tecnicos que conectan el analisis exploratorio, la normalizacion y las decisiones de diseno fisico/logico para PostgreSQL, MongoDB y las vistas analiticas.
 
 ### 1. Analisis de tipos avanzados en PostgreSQL
 
@@ -90,20 +135,19 @@ El analisis inicial nos indica evaluar `JSONB`, arrays, `hstore`, composite type
 
 Decision de trabajo: en el modelo de Ecommify, las columnas normalizadas deben seguir siendo la base para `customers`, `orders`, `order_items`, `order_payments`, `products`, `sellers` y `category_translation`. `JSONB` se propone como extension controlada para atributos variables del catalogo o eventos de negocio que no definan la integridad central.
 
-### 3. Cambios posibles derivados de este analisis
+### 3. Decisiones tecnicas derivadas del analisis
 
-| Cambio posible | Tabla / modulo afectado | Motivo | Cambio requerido en EDA | Cambio requerido en normalizacion | Impacto en estructura del documento | Impacto PostgreSQL | Impacto MongoDB | Estado | Aprobacion |
-|---|---|---|---|---|---|---|---|---|---|
-| Agregar `products.specifications JSONB` | PostgreSQL / `products` | Guardar atributos variables por categoria sin alterar el esquema por cada nuevo atributo. | Identificar atributos variables de producto que no estan bien representados por columnas fijas; proponer ejemplos de productos tecnologicos. | Mantener atributos base en `products` y justificar que `specifications` no reemplaza columnas normalizadas. | Agregar en el documento una subseccion de tipos avanzados con ejemplo JSONB para productos. | Agregar columna `specifications JSONB` en `products`; evaluar indice GIN si se consulta por claves internas. | Incluir `specifications` como subdocumento dentro de `product_catalog`. | Por validar | aprobado |
-| Agregar `products.photo_urls TEXT[]` | PostgreSQL / `products` | Representar una lista simple de imagenes si el proyecto decide modelar URLs reales. | Confirmar que Olist solo trae `product_photos_qty` y documentar que las URLs son una extension del caso Ecommify. | Si las fotos son solo strings, puede usarse array; si tienen metadata, crear tabla `product_images`. | Documentar el supuesto: cantidad de fotos original vs lista real de URLs propuesta. | Agregar `photo_urls TEXT[]` si se acepta el supuesto de URLs simples. | Incluir arreglo `photos` en `product_catalog`. | Por validar | aprobado |
-| Mantener dimensiones como columnas (`weight`, `length`, `height`, `width`) | PostgreSQL / `products` | Son atributos medibles y consultables; conviene conservarlos normalizados. | Revisar nulos y posibles outliers en peso y dimensiones. | Confirmar que peso y dimensiones dependen directamente de `product_id`. | Agregar decision explicita: dimensiones no van a `JSONB` ni composite type inicialmente. | Mantener columnas numericas en `products`; considerar checks de valores positivos. | Replicar dimensiones como subdocumento de lectura, sin cambiar la fuente de verdad. | Recomendado | aprobado |
-| No mover pagos a `JSONB` | PostgreSQL / `order_payments` | Los pagos requieren consistencia, montos, secuencia y relacion con orden. | Mantener analisis de multiples pagos por orden y validar `payment_sequential`. | Reforzar la clave compuesta (`order_id`, `payment_sequential`) y la dependencia completa en 2FN. | Explicar que pagos son datos transaccionales y no documentos flexibles. | Mantener `order_payments` como tabla relacional con FK a `orders`. | Usar pagos solo como resumen derivado en dashboards o perfiles. | Recomendado | aprobado - no se hace ningun cambio a lo estructurado |
-| Evaluar `orders.lifecycle JSONB` | PostgreSQL / `orders` | Podria guardar eventos de auditoria sin reemplazar fechas principales. | Analizar `order_status` y las fechas de orden para definir eventos del ciclo de vida. | Mantener fechas principales como columnas; `lifecycle` seria historico complementario. | Agregar ejemplo de eventos de orden en JSONB y aclarar que no reemplaza columnas de fecha. | Agregar `lifecycle JSONB` o, si se requiere auditoria fuerte, proponer tabla `order_events`. | Incluir timeline de orden en documentos analiticos si aporta valor. | Por validar | aprobado |
-| Evaluar `promotions.valid_period TSTZRANGE` | Nuevo modulo de promociones | Aplica si el alcance incluye promociones o campañas. | Verificar que Olist no trae promociones; tratarlo solo como extension posible. | No modifica la normalizacion del dataset actual porque es un modulo fuera del alcance base. | Marcar promociones como fuera de alcance inicial. | No crear tabla `promotions` en el diseño inicial. | No agregar promociones al catalogo documental inicial. | Pendiente de alcance | rechazado |
-| Descartar `hstore` inicialmente | PostgreSQL | `JSONB` cubre mejor los casos flexibles previstos. | No requiere analisis adicional; basta registrar que no hay necesidad de clave-valor textual simple. | No modifica 1FN, 2FN ni 3FN. | Incluir decision de descarte para evidenciar que se evaluo el tipo avanzado. | No habilitar ni usar extension `hstore` en el DDL inicial. | Sin impacto en colecciones MongoDB. | Recomendado | ok |
-| Evaluar composite type para dimensiones | PostgreSQL / `products` | Podria agrupar dimensiones, pero puede restar simplicidad al modelo. | Revisar si las dimensiones se consultan o validan individualmente. | Mantener columnas separadas porque son simples, medibles y dependientes de `product_id`. | Documentar que se descarta composite type para preservar claridad del modelo. | No crear composite type para dimensiones; conservar columnas simples. | En MongoDB si pueden agruparse como subdocumento `dimensions`. | No prioritario | rechazado |
-
-### 4. Preguntas para refinar en conjunto
+| Decision tecnica | Tabla / modulo | Criterio de diseno | PostgreSQL | MongoDB | Estado tecnico |
+|---|---|---|---|---|---|
+| Incorporar `products.specifications JSONB` | `products` | Los atributos variables de catalogo no justifican nuevas columnas por cada categoria. | Columna `JSONB` con indice GIN si se consultan claves internas. | Subdocumento `specifications` en `product_catalog`. | Adoptado |
+| Incorporar `products.photo_urls TEXT[]` | `products` | Una lista simple de URLs puede representarse como arreglo si no tiene metadata propia. | Columna `TEXT[]`; si las imagenes tienen atributos, se modela tabla `product_images`. | Arreglo `photos` en `product_catalog`. | Adoptado como extension de negocio |
+| Mantener dimensiones como columnas | `products` | Peso, alto, ancho y largo son medibles, consultables y validables. | Columnas numericas con restricciones de valores no negativos o positivos segun regla. | Subdocumento `dimensions` derivado para lectura. | Adoptado |
+| Mantener pagos normalizados | `order_payments` | Los pagos requieren consistencia financiera, secuencia e integridad referencial. | `payment_sk` como PK tecnica y `UNIQUE (order_sk, payment_sequential)`. | Resumen derivado, no fuente de verdad. | Adoptado |
+| Incorporar `orders.lifecycle JSONB` | `orders` | Los eventos complementarios del ciclo de vida pueden variar sin reemplazar fechas principales. | Columna `JSONB` para historial complementario; fechas operativas siguen normalizadas. | Timeline derivado en documentos analiticos. | Adoptado |
+| Excluir promociones con ranges del alcance inicial | `promotions` | El dataset base no incluye promociones ni campañas. | No se crea modulo inicial de promociones. | No se crea coleccion documental inicial. | Descartado para esta version |
+| Descartar `hstore` | PostgreSQL | `JSONB` cubre mejor los casos flexibles previstos. | No se habilita la extension `hstore`. | Sin impacto documental. | Descartado |
+| Descartar composite type para dimensiones | `products` | Las columnas simples facilitan constraints, indices y lectura del modelo. | No se crea composite type; se conservan columnas numericas. | `dimensions` puede existir solo como subdocumento derivado. | Descartado |
+### 4. Discusiones tecnicas abiertas
 
 - Que atributos variables reales tendria un producto tecnologico en Ecommify: marca, modelo, garantia, color, memoria, compatibilidad, condicion?
 - Las fotos del producto deben ser solo una cantidad (`product_photos_qty`) como en Olist o una lista real de URLs?
@@ -342,11 +386,25 @@ Estas restricciones se incorporan porque fortalecen la consistencia del modelo y
 | Precio no negativo | `order_items.price` | `CHECK (price >= 0)` | Un item de orden no debe registrar precios negativos por errores de captura o carga. |
 | Flete no negativo | `order_items.freight_value` | `CHECK (freight_value >= 0)` | El valor de envio debe ser cero o positivo. |
 | Pago no negativo | `order_payments.payment_value` | `CHECK (payment_value >= 0)` | Los pagos son financieros y requieren validacion estricta. |
-| Pagos secuenciales por orden | `order_payments` | PK compuesta (`order_id`, `payment_sequential`) | Una orden puede tener varios pagos; la combinacion identifica cada pago de forma auditable. |
+| Pagos secuenciales por orden | `order_payments` | `payment_sk` como PK tecnica y `UNIQUE (order_sk, payment_sequential)` | Una orden puede tener varios pagos; la combinacion natural se conserva como restriccion unica auditable. |
 | Fecha de compra obligatoria | `orders.order_purchase_timestamp` | `NOT NULL` | Toda orden debe tener fecha de compra; ademas soporta analisis temporal y particionamiento. |
 | Estado de orden obligatorio | `orders.order_status` | `NOT NULL` recomendado | Permite seguimiento operacional y segmentacion de ordenes por estado. |
 | Categoria de producto controlada | `products.product_category_name` | FK hacia `category_translation` cuando exista la categoria limpia | Evita inconsistencias de catalogo y permite analisis por categoria. |
 | Reseñas con score valido | `order_reviews.review_score` | `CHECK (review_score BETWEEN 1 AND 5)` | La escala de reseñas debe mantenerse dentro del rango valido. |
+
+### Decision de llaves tecnicas y trazabilidad
+
+El analisis de implementacion en PostgreSQL indica que no conviene usar todos los IDs originales de Olist como claves primarias fisicas. Aunque `customer_id`, `order_id`, `product_id`, `seller_id` y `review_id` son utiles para trazabilidad, son identificadores externos de texto y generan indices mas grandes que una llave numerica interna.
+
+Decision adoptada:
+
+| Criterio | Decision | Justificacion |
+|---|---|---|
+| PK fisicas | Usar llaves tecnicas `BIGINT GENERATED ALWAYS AS IDENTITY` con sufijo `_sk`. | Mejora rendimiento de joins, reduce tamano de indices y evita depender de IDs externos. |
+| IDs Olist | Mantenerlos como `TEXT UNIQUE`. | Conservan trazabilidad con los CSV originales y permiten busqueda operacional. |
+| FK internas | Usar `customer_sk`, `order_sk`, `product_sk`, `seller_sk`, `category_sk`. | Las relaciones quedan estables y eficientes en PostgreSQL. |
+| Claves naturales | Mantenerlas con `UNIQUE` cuando representan reglas de negocio. | Por ejemplo, pagos conserva `UNIQUE (order_sk, payment_sequential)`. |
+| UUID | No adoptarlo inicialmente. | Los IDs Olist no son UUID generados por el sistema; convertirlos artificialmente no aporta valor al alcance actual. |
 
 ### Implicaciones para SQL preliminar
 
@@ -356,7 +414,8 @@ Estas reglas deben reflejarse posteriormente en los scripts DDL dentro de `postg
 price DECIMAL(10,2) CHECK (price >= 0)
 freight_value DECIMAL(10,2) CHECK (freight_value >= 0)
 payment_value DECIMAL(10,2) CHECK (payment_value >= 0)
-PRIMARY KEY (order_id, payment_sequential)
+payment_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+UNIQUE (order_sk, payment_sequential)
 order_purchase_timestamp TIMESTAMP NOT NULL
 review_score INTEGER CHECK (review_score BETWEEN 1 AND 5)
 ```
@@ -633,7 +692,7 @@ Ajuste derivado de la Etapa 1: PostgreSQL sigue siendo la fuente de verdad relac
 | `customers` | Tabla base normalizada y fuente de verdad para clientes. | Resumen derivado en `customer_profiles`. | Entidad estructurada relacionada con órdenes; MongoDB solo consolida métricas analíticas de comportamiento. |
 | `orders` | Tabla transaccional principal, con `order_purchase_timestamp NOT NULL`, `orders.lifecycle JSONB`, particionamiento mensual por fecha y triggers de `updated_at`. | Timeline o resumen derivado de orden en documentos analíticos. | Núcleo OLTP del negocio; MongoDB no reemplaza la integridad ni el particionamiento, solo facilita lectura y dashboards. |
 | `order_items` | Tabla relacional que conecta orden, producto y vendedor, con precios y fletes validados. | Agregados de ventas por producto, categoría o vendedor. | Se mantiene normalizada para integridad; puede alimentar métricas OLAP y documentos derivados. |
-| `order_payments` | Tabla relacional con PK compuesta `(order_id, payment_sequential)` y `CHECK (payment_value >= 0)`. | Solo resumen derivado de pagos. | Los pagos requieren consistencia transaccional; no se mueven a `JSONB` ni a documento como fuente principal. |
+| `order_payments` | Tabla relacional con `payment_sk` como PK tecnica, `UNIQUE (order_sk, payment_sequential)` y `CHECK (payment_value >= 0)`. | Solo resumen derivado de pagos. | Los pagos requieren consistencia transaccional; no se mueven a `JSONB` ni a documento como fuente principal. |
 | `products` | Tabla base con categoría, dimensiones como columnas, `specifications JSONB` y `photo_urls TEXT[]`. | Catálogo enriquecido `product_catalog` con `specifications`, `photos`, `dimensions`, reseñas y métricas. | PostgreSQL conserva el producto maestro; MongoDB mejora lecturas de catálogo enriquecido sin romper normalización. |
 | `category_translation` | Tabla de referencia normalizada para traducir categorías. | Campo embebido o derivado dentro de `product_catalog`. | Es pequeña, estable y útil para FK en PostgreSQL; en MongoDB solo se replica para consulta. |
 | `sellers` | Tabla base normalizada de vendedores. | Resumen derivado en `seller_performance`. | Entidad estructurada con relaciones transaccionales; MongoDB consolida desempeño, ventas y métricas. |
@@ -649,29 +708,7 @@ Ajuste derivado de la Etapa 1: PostgreSQL sigue siendo la fuente de verdad relac
 
 ---
 
-## 13. Recomendaciones para la siguiente etapa
-
-A partir del EDA realizado, se recomiendan las siguientes acciones para continuar con el diseño del modelo de datos:
-
-1. Definir el modelo conceptual identificando entidades principales: Customer, Order, Product, Seller, Payment, Review y Category.
-2. Construir el diagrama entidad-relación con las cardinalidades identificadas.
-3. Definir claves primarias y foráneas para el modelo relacional en PostgreSQL.
-4. Revisar los 2 valores de categoría que no tienen relación con `category_translation`.
-5. Limpiar o consolidar la tabla `geolocation` antes de usarla en análisis geográfico.
-6. Analizar los nulos de fechas en `orders` según el estado de la orden.
-7. Definir qué vistas o documentos derivados se construirán en MongoDB.
-8. Proponer índices iniciales para consultas por `order_id`, `customer_id`, `product_id`, `seller_id` y fechas de compra.
-9. Incorporar en el diseño lógico los tipos avanzados aprobados: `products.specifications JSONB`, `products.photo_urls TEXT[]` y `orders.lifecycle JSONB`.
-10. Documentar explícitamente los descartes: pagos no se mueven a `JSONB`, promociones quedan fuera del alcance inicial, `hstore` no se usa y dimensiones no se modelan como composite type.
-11. Diseñar `orders` como tabla particionada por rango mensual usando `order_purchase_timestamp`.
-12. Definir las vistas materializadas `mv_sales_by_category_monthly`, `mv_customer_segments`, `mv_seller_performance_monthly` y `mv_geo_sales_summary`.
-13. Agregar estrategia de triggers `updated_at` para tablas maestras y transaccionales.
-14. Documentar jobs de mantenimiento: `VACUUM/ANALYZE`, refresh de vistas materializadas, creacion mensual de particiones y revision de indices.
-15. Definir metricas de monitoreo OLTP/OLAP para validar rendimiento, frescura y escalamiento.
-
----
-
-## 14. Conclusión inicial
+## 13. Conclusión técnica inicial
 
 El EDA permitió comprender la estructura, volumen, relaciones y calidad de los datos del dataset Olist utilizado para el caso Ecommify.
 
@@ -755,7 +792,7 @@ El esquema normalizado propuesto mantiene las siguientes entidades:
 - `category_translation`
 - `geolocation`, previa limpieza o consolidación
 
-Ajuste aplicado: el esquema sigue normalizado, pero se agregan columnas avanzadas controladas. En `products` se incorporan `specifications JSONB` y `photo_urls TEXT[]`; en `orders` se incorpora `lifecycle JSONB`. Estas columnas no reemplazan claves, relaciones ni atributos medibles principales. Los pagos permanecen en `order_payments` y las dimensiones del producto siguen como columnas numericas.
+Ajuste aplicado: el esquema sigue normalizado y adopta llaves tecnicas internas `BIGINT IDENTITY` para PK/FK, manteniendo los IDs Olist como `TEXT UNIQUE`. Ademas, se agregan columnas avanzadas controladas. En `products` se incorporan `specifications JSONB` y `photo_urls TEXT[]`; en `orders` se incorpora `lifecycle JSONB`. Estas columnas no reemplazan claves, relaciones ni atributos medibles principales. Los pagos permanecen en `order_payments` y las dimensiones del producto siguen como columnas numericas.
 
 ## Diagrama del esquema normalizado final
 
@@ -766,32 +803,31 @@ Nota: en el diagrama Mermaid algunos atributos se simplifican para evitar errore
 
 ## Claves primarias propuestas
 
-| Tabla | Clave primaria propuesta | Justificación |
-|---|---|---|
-| `customers` | `customer_id` | Identifica de forma única cada cliente registrado en una orden. |
-| `orders` | `order_id` | Identifica de forma única cada orden. La columna `lifecycle JSONB` es complementaria y no participa como clave. |
-| `order_items` | `order_id`, `order_item_id` | Una orden puede tener varios ítems; la combinación identifica cada línea de la orden. |
-| `products` | `product_id` | Identifica de forma única cada producto. `specifications JSONB` y `photo_urls TEXT[]` son atributos flexibles, no identificadores. |
-| `sellers` | `seller_id` | Identifica de forma única cada vendedor. |
-| `order_payments` | `order_id`, `payment_sequential` | Una orden puede tener más de un pago; la combinación identifica cada pago. |
-| `order_reviews` | `review_id` | Identifica la reseña. Si se detectan duplicados en `review_id`, se recomienda usar una llave técnica adicional o una clave compuesta. |
-| `category_translation` | `product_category_name` | Identifica cada categoría original y su traducción. |
-| `geolocation` | `geolocation_zip_code_prefix` | Solo debe usarse como clave después de limpiar o consolidar duplicados. |
+| Tabla | Clave primaria tecnica | Identificador Olist / natural | Justificación |
+|---|---|---|---|
+| `customers` | `customer_sk` | `customer_id TEXT UNIQUE` | La PK interna optimiza relaciones; `customer_id` conserva trazabilidad Olist. |
+| `orders` | `order_sk` | `order_id TEXT UNIQUE` | La orden se relaciona internamente por `order_sk`; `order_id` permite busqueda y auditoria. |
+| `order_items` | `order_item_sk` | `UNIQUE (order_sk, order_item_id)` | Cada linea de orden tiene PK tecnica y conserva la regla natural de item dentro de una orden. |
+| `order_payments` | `payment_sk` | `UNIQUE (order_sk, payment_sequential)` | La secuencia de pago sigue siendo unica por orden, pero no se usa como PK fisica. |
+| `products` | `product_sk` | `product_id TEXT UNIQUE` | El producto conserva el ID Olist como identificador externo. |
+| `sellers` | `seller_sk` | `seller_id TEXT UNIQUE` | El vendedor conserva trazabilidad y usa PK interna para joins. |
+| `order_reviews` | `review_sk` | `UNIQUE (review_id, order_sk)` | La PK tecnica evita depender de posibles duplicidades del identificador de resena. |
+| `category_translation` | `category_sk` | `product_category_name TEXT UNIQUE` | La categoria original queda como clave natural unica. |
+| `geolocation_clean` | `geolocation_sk` | `geolocation_zip_code_prefix` indexado | La geolocalizacion requiere limpieza; el prefijo postal no se usa como PK fisica. |
 
 ## Claves foráneas propuestas
 
-| Tabla origen | Columna FK | Tabla destino | Columna PK | Relación |
+| Tabla origen | Columna FK interna | Tabla destino | Columna destino | Relación |
 |---|---|---|---|---|
-| `orders` | `customer_id` | `customers` | `customer_id` | Un cliente puede tener muchas órdenes. |
-| `order_items` | `order_id` | `orders` | `order_id` | Una orden puede tener muchos ítems. |
-| `order_items` | `product_id` | `products` | `product_id` | Un producto puede aparecer en muchos ítems de orden. |
-| `order_items` | `seller_id` | `sellers` | `seller_id` | Un vendedor puede vender muchos ítems. |
-| `order_payments` | `order_id` | `orders` | `order_id` | Una orden puede tener uno o varios pagos. |
-| `order_reviews` | `order_id` | `orders` | `order_id` | Una orden puede tener una o varias reseñas. |
-| `products` | `product_category_name` | `category_translation` | `product_category_name` | Una categoría puede estar asociada a muchos productos. |
-| `customers` | `customer_zip_code_prefix` | `geolocation` | `geolocation_zip_code_prefix` | Un cliente se asocia a una ubicación geográfica. |
-| `sellers` | `seller_zip_code_prefix` | `geolocation` | `geolocation_zip_code_prefix` | Un vendedor se asocia a una ubicación geográfica. |
+| `orders` | `customer_sk` | `customers` | `customer_sk` | Un cliente puede tener muchas ordenes. |
+| `products` | `category_sk` | `category_translation` | `category_sk` | Una categoria puede clasificar muchos productos. |
+| `order_items` | `order_sk` | `orders` | `order_sk` | Una orden puede tener muchos items. |
+| `order_items` | `product_sk` | `products` | `product_sk` | Un producto puede aparecer en muchos items de orden. |
+| `order_items` | `seller_sk` | `sellers` | `seller_sk` | Un vendedor puede vender muchos items. |
+| `order_payments` | `order_sk` | `orders` | `order_sk` | Una orden puede tener uno o varios pagos. |
+| `order_reviews` | `order_sk` | `orders` | `order_sk` | Una orden puede tener una o varias resenas. |
 
+Nota: las asociaciones con `geolocation_clean` se mantienen como relacion logica por prefijo postal, ciudad y estado hasta completar limpieza y deduplicacion geografica.
 ## 7. Análisis de trade-offs de alta normalización
 
 La normalización permite organizar los datos, reducir redundancia y mejorar la integridad del modelo. Sin embargo, no siempre debe aplicarse de forma extrema, ya que el diseño debe responder al problema de negocio y a los patrones de consulta esperados.
@@ -865,7 +901,7 @@ En conclusión:
 | Necesidad | Decisión |
 |---|---|
 | Operación transaccional | PostgreSQL normalizado hasta 3FN |
-| Integridad de órdenes y pagos | PostgreSQL; pagos permanecen en `order_payments` y no en `JSONB` |
+| Integridad de órdenes y pagos | PostgreSQL; pagos permanecen en `order_payments`, con `payment_sk` como PK y secuencia unica por orden |
 | Catálogo enriquecido | MongoDB con `specifications`, `photo_urls` y `dimensions` derivados desde PostgreSQL |
 | Reviews y comentarios | MongoDB |
 | Análisis geográfico | MongoDB |
@@ -879,39 +915,32 @@ En conclusión:
 
 ```mermaid
 erDiagram
-    CUSTOMERS ||--o{ ORDERS : realiza
-    ORDERS ||--o{ ORDER_ITEMS : contiene
-    PRODUCTS ||--o{ ORDER_ITEMS : aparece_en
-    SELLERS ||--o{ ORDER_ITEMS : vende
-    ORDERS ||--o{ ORDER_PAYMENTS : tiene
-    ORDERS ||--o{ ORDER_REVIEWS : recibe
-    CATEGORY_TRANSLATION ||--o{ PRODUCTS : clasifica
-    GEOLOCATION_CLEAN ||--o{ CUSTOMERS : ubica
-    GEOLOCATION_CLEAN ||--o{ SELLERS : ubica
-
-    ORDERS ||--o{ ORDERS_PARTITIONS : particiona_por_fecha
-    ORDERS ||--o{ MV_SALES_BY_CATEGORY_MONTHLY : alimenta
-    ORDER_ITEMS ||--o{ MV_SALES_BY_CATEGORY_MONTHLY : alimenta
-    PRODUCTS ||--o{ MV_SALES_BY_CATEGORY_MONTHLY : alimenta
-    CUSTOMERS ||--o{ MV_CUSTOMER_SEGMENTS : alimenta
-    ORDER_PAYMENTS ||--o{ MV_CUSTOMER_SEGMENTS : alimenta
-    SELLERS ||--o{ MV_SELLER_PERFORMANCE_MONTHLY : alimenta
-    GEOLOCATION_CLEAN ||--o{ MV_GEO_SALES_SUMMARY : alimenta
+    CUSTOMERS ||--o{ ORDERS : "realiza"
+    ORDERS ||--|{ ORDER_ITEMS : "contiene"
+    PRODUCTS ||--o{ ORDER_ITEMS : "aparece_en"
+    SELLERS ||--o{ ORDER_ITEMS : "vende"
+    ORDERS ||--o{ ORDER_PAYMENTS : "tiene"
+    ORDERS ||--o{ ORDER_REVIEWS : "recibe"
+    CATEGORY_TRANSLATION ||--o{ PRODUCTS : "clasifica"
+    GEOLOCATION_CLEAN ||--o{ CUSTOMERS : "ubica_clientes"
+    GEOLOCATION_CLEAN ||--o{ SELLERS : "ubica_vendedores"
 
     CUSTOMERS {
-        varchar customer_id PK
-        varchar customer_unique_id
-        int customer_zip_code_prefix FK
-        varchar customer_city
-        char customer_state
+        bigint customer_sk
+        string customer_id
+        string customer_unique_id
+        int customer_zip_code_prefix
+        string customer_city
+        string customer_state
         timestamp created_at
         timestamp updated_at
     }
 
     ORDERS {
-        varchar order_id PK
-        varchar customer_id FK
-        varchar order_status
+        bigint order_sk
+        string order_id
+        bigint customer_sk
+        string order_status
         timestamp order_purchase_timestamp
         timestamp order_approved_at
         timestamp order_delivered_carrier_date
@@ -922,113 +951,87 @@ erDiagram
         timestamp updated_at
     }
 
-    ORDERS_PARTITIONS {
-        varchar partition_name PK
-        date range_start
-        date range_end
-        varchar partition_type
+    ORDER_ITEMS {
+        bigint order_item_sk
+        bigint order_sk
+        int order_item_id
+        bigint product_sk
+        bigint seller_sk
+        timestamp shipping_limit_date
+        decimal price
+        decimal freight_value
+        timestamp created_at
+        timestamp updated_at
     }
 
-    ORDER_ITEMS {
-        varchar order_id PK
-        int order_item_id PK
-        varchar product_id FK
-        varchar seller_id FK
-        timestamp shipping_limit_date
-        numeric price
-        numeric freight_value
+    ORDER_PAYMENTS {
+        bigint payment_sk
+        bigint order_sk
+        int payment_sequential
+        string payment_type
+        int payment_installments
+        decimal payment_value
         timestamp created_at
         timestamp updated_at
     }
 
     PRODUCTS {
-        varchar product_id PK
-        varchar product_category_name FK
+        bigint product_sk
+        string product_id
+        bigint category_sk
         int product_name_lenght
         int product_description_lenght
         int product_photos_qty
-        numeric product_weight_g
-        numeric product_length_cm
-        numeric product_height_cm
-        numeric product_width_cm
+        int product_weight_g
+        int product_length_cm
+        int product_height_cm
+        int product_width_cm
         jsonb specifications
         text_array photo_urls
         timestamp created_at
         timestamp updated_at
     }
 
-    SELLERS {
-        varchar seller_id PK
-        int seller_zip_code_prefix FK
-        varchar seller_city
-        char seller_state
+    CATEGORY_TRANSLATION {
+        bigint category_sk
+        string product_category_name
+        string product_category_name_english
         timestamp created_at
         timestamp updated_at
     }
 
-    ORDER_PAYMENTS {
-        varchar order_id PK
-        int payment_sequential PK
-        varchar payment_type
-        int payment_installments
-        numeric payment_value
+    SELLERS {
+        bigint seller_sk
+        string seller_id
+        int seller_zip_code_prefix
+        string seller_city
+        string seller_state
         timestamp created_at
         timestamp updated_at
     }
 
     ORDER_REVIEWS {
-        varchar review_id PK
-        varchar order_id FK
+        bigint review_sk
+        string review_id
+        bigint order_sk
         int review_score
-        text review_comment_title
-        text review_comment_message
+        string review_comment_title
+        string review_comment_message
         timestamp review_creation_date
         timestamp review_answer_timestamp
+        timestamp created_at
         timestamp updated_at
     }
 
-    CATEGORY_TRANSLATION {
-        varchar product_category_name PK
-        varchar product_category_name_english
-    }
-
     GEOLOCATION_CLEAN {
-        int zip_code_prefix PK
-        numeric lat
-        numeric lng
-        varchar city
-        char state
-    }
-
-    MV_SALES_BY_CATEGORY_MONTHLY {
-        date month PK
-        varchar product_category_name PK
-        int total_orders
-        int total_items
-        numeric total_revenue
-    }
-
-    MV_CUSTOMER_SEGMENTS {
-        varchar customer_unique_id PK
-        int total_orders
-        numeric total_spent
-        timestamp last_purchase_at
-        varchar segment
-    }
-
-    MV_SELLER_PERFORMANCE_MONTHLY {
-        date month PK
-        varchar seller_id PK
-        int total_items
-        numeric total_revenue
-        numeric avg_review_score
-    }
-
-    MV_GEO_SALES_SUMMARY {
-        char state PK
-        varchar city PK
-        int total_orders
-        numeric total_revenue
+        bigint geolocation_sk
+        int geolocation_zip_code_prefix
+        decimal geolocation_lat
+        decimal geolocation_lng
+        string geolocation_city
+        string geolocation_state
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 

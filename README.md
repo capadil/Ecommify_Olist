@@ -1,5 +1,9 @@
 # Ecommify_Olist
-
+**Integrantes Grupo1:** 
+  * Jorge Andres Ayala Valero - jorgeayva@unisabana.edu.co
+  * Pablo Andres Melo Garcia - pablomega@unisabana.edu.co
+  * Camilo Andres Padilla Garcia - camilopaga@unisabana.edu.co
+  
 Proyecto de práctica para diseño y análisis de datos usando el dataset Olist. Este repositorio agrupa esquemas, consultas, notebooks y datos crudos usados en la asignatura Diseño y Optimización de Bases de Datos.
 
 ## Estructura del repositorio

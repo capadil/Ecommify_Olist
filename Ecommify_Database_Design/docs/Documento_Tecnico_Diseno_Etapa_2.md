@@ -10,7 +10,6 @@
 7. [Decisiones arquitectonicas justificadas](#7-decisiones-arquitectonicas-justificadas)
 8. [Estrategia hibrida OLTP/OLAP](#8-estrategia-hibrida-oltpolap)
 9. [Anexos tecnicos](#9-anexos-tecnicos)
-10. [Pendientes de cierre](#10-pendientes-de-cierre)
 
 ---
 
@@ -94,7 +93,7 @@ La Etapa 2 se enfoca en el diseno conceptual y logico. No reemplaza la implement
 | El precio de item no puede ser negativo. | `order_items.price` | `CHECK (price >= 0)` |
 | El valor de flete no puede ser negativo. | `order_items.freight_value` | `CHECK (freight_value >= 0)` |
 | El valor de pago no puede ser negativo. | `order_payments.payment_value` | `CHECK (payment_value >= 0)` |
-| Un pago se identifica por orden y secuencia. | `order_payments` | `PRIMARY KEY (order_id, payment_sequential)` |
+| Un pago se identifica por orden y secuencia. | `order_payments` | `payment_sk` como PK tecnica y `UNIQUE (order_sk, payment_sequential)` |
 | Toda orden debe tener fecha de compra. | `orders.order_purchase_timestamp` | `TIMESTAMP NOT NULL` |
 | Toda orden debe tener estado. | `orders.order_status` | `NOT NULL` |
 | La calificacion debe estar en rango valido. | `order_reviews.review_score` | `CHECK (review_score BETWEEN 1 AND 5)` |
@@ -156,27 +155,39 @@ PostgreSQL se define como el motor principal para el modelo transaccional normal
 
 ### 5.2 Tablas relacionales principales
 
-| Tabla | Proposito | Clave primaria propuesta | Observaciones |
-|---|---|---|---|
-| `customers` | Clientes del sistema. | `customer_id` | Mantener ID Olist como `TEXT`. |
-| `orders` | Ordenes realizadas por clientes. | `order_id` | Incluir fechas principales, `order_status`, `lifecycle JSONB`, `created_at`, `updated_at`. |
-| `order_items` | Items asociados a ordenes. | `(order_id, order_item_id)` | Relaciona orden, producto y vendedor; validar precio y flete. |
-| `order_payments` | Pagos de una orden. | `(order_id, payment_sequential)` | No mover pagos a `JSONB`; mantener consistencia transaccional. |
-| `products` | Producto base del catalogo. | `product_id` | Mantener dimensiones como columnas; agregar `specifications JSONB` y `photo_urls TEXT[]`. |
-| `category_translation` | Traduccion y normalizacion de categorias. | `product_category_name` | Tabla de referencia. |
-| `sellers` | Vendedores. | `seller_id` | Entidad estructurada transaccional. |
-| `order_reviews` | Resenas y calificaciones. | `review_id` | Validar `review_score`; puede alimentar documentos derivados. |
-| `geolocation` | Datos geograficos. | Por definir tras limpieza | Se recomienda consolidar duplicados antes de uso analitico. |
+| Tabla | Proposito | PK tecnica | Identificador Olist / natural | Observaciones |
+|---|---|---|---|---|
+| `customers` | Clientes del sistema. | `customer_sk` | `customer_id TEXT UNIQUE` | `customer_id` se conserva para trazabilidad con Olist. |
+| `orders` | Ordenes realizadas por clientes. | `order_sk` | `order_id TEXT UNIQUE` | FK interna `customer_sk`; incluye fechas, `order_status`, `lifecycle JSONB`, `created_at`, `updated_at`. |
+| `order_items` | Items asociados a ordenes. | `order_item_sk` | `UNIQUE (order_sk, order_item_id)` | Relaciona orden, producto y vendedor mediante llaves internas. |
+| `order_payments` | Pagos de una orden. | `payment_sk` | `UNIQUE (order_sk, payment_sequential)` | No mover pagos a `JSONB`; mantener consistencia transaccional. |
+| `products` | Producto base del catalogo. | `product_sk` | `product_id TEXT UNIQUE` | Mantener dimensiones como columnas; agregar `specifications JSONB` y `photo_urls TEXT[]`. |
+| `category_translation` | Traduccion y normalizacion de categorias. | `category_sk` | `product_category_name TEXT UNIQUE` | Tabla de referencia para catalogo. |
+| `sellers` | Vendedores. | `seller_sk` | `seller_id TEXT UNIQUE` | Entidad estructurada transaccional. |
+| `order_reviews` | Resenas y calificaciones. | `review_sk` | `UNIQUE (review_id, order_sk)` | Permite trazabilidad sin depender del ID textual como PK fisica. |
+| `geolocation_clean` | Datos geograficos limpios o consolidados. | `geolocation_sk` | Prefijo postal indexado | Se recomienda consolidar duplicados antes de uso analitico. |
 
-### 5.3 Normalizacion
+### 5.3 Estrategia de llaves tecnicas
+
+El modelo diferencia entre llaves tecnicas internas e identificadores de origen:
+
+| Elemento | Decision | Justificacion |
+|---|---|---|
+| Llaves primarias | Usar `BIGINT GENERATED ALWAYS AS IDENTITY` con sufijo `_sk`. | Reduce tamano de indices, mejora joins y evita depender de identificadores externos largos. |
+| IDs Olist | Mantenerlos como `TEXT UNIQUE`. | Conservan trazabilidad con archivos fuente y busquedas operacionales. |
+| Llaves foraneas | Relacionar tablas mediante `customer_sk`, `order_sk`, `product_sk`, `seller_sk`, `category_sk`. | Mantiene integridad referencial eficiente en PostgreSQL. |
+| Claves naturales | Usar `UNIQUE` para reglas de negocio. | Por ejemplo, `UNIQUE (order_sk, payment_sequential)` conserva la secuencia de pagos por orden. |
+| UUID | No adoptarlo inicialmente. | Los IDs Olist no son UUID generados por el sistema; convertirlos artificialmente no aporta valor al alcance actual. |
+
+### 5.4 Normalizacion
 
 El modelo se normaliza hasta 3FN:
 
 - 1FN: los atributos se mantienen atomicos; las repeticiones se separan en tablas como `order_items` y `order_payments`.
-- 2FN: los atributos de tablas con claves compuestas dependen de la clave completa, especialmente en `order_items` y `order_payments`.
+- 2FN: las reglas naturales compuestas se conservan mediante `UNIQUE`, por ejemplo item por orden y pago secuencial por orden.
 - 3FN: se separan dependencias transitivas, por ejemplo categorias en `category_translation` y entidades independientes como clientes, vendedores y productos.
 
-### 5.4 Tipos avanzados aprobados
+### 5.5 Tipos avanzados aprobados
 
 | Tipo | Uso aprobado | Justificacion |
 |---|---|---|
@@ -186,7 +197,7 @@ El modelo se normaliza hasta 3FN:
 | Composite type | No usado inicialmente | Se descarta para dimensiones; las dimensiones quedan como columnas simples. |
 | Range types | Evaluado, no implementado | Promociones quedan fuera del alcance inicial. |
 
-### 5.5 Auditoria operacional
+### 5.6 Auditoria operacional
 
 Se recomienda agregar `created_at` y `updated_at` en tablas maestras y transaccionales relevantes:
 
@@ -200,25 +211,24 @@ Se recomienda agregar `created_at` y `updated_at` en tablas maestras y transacci
 
 El campo `updated_at` debe mantenerse mediante trigger para evitar depender de actualizaciones manuales desde la aplicacion.
 
-### 5.6 Particionamiento
+### 5.7 Particionamiento
 
-La tabla `orders` debe disenarse para particionamiento por rango mensual usando `order_purchase_timestamp`.
+La tabla `orders` se analiza para particionamiento por rango mensual usando `order_purchase_timestamp`.
 
 Decision:
 
-- Particiones recientes como zona hot para consultas operativas frecuentes.
-- Particiones historicas como zona cold para consultas historicas y analiticas.
+- El modelo base conserva `orders` no particionada para mantener FKs simples por `order_sk`.
+- El particionamiento queda como alternativa fisica documentada, porque PostgreSQL exige que una PK/UNIQUE de tabla particionada incluya la clave de particion.
 - MongoDB no reemplaza el particionamiento; solo consume agregados o documentos derivados.
 
-### 5.7 Vistas materializadas
+### 5.8 Vistas materializadas
 
 | Vista materializada | Proposito | Tablas origen |
 |---|---|---|
 | `mv_sales_by_category_monthly` | Ventas mensuales por categoria. | `orders`, `order_items`, `products`, `category_translation` |
 | `mv_customer_segments` | Segmentacion de clientes por frecuencia, valor y comportamiento. | `customers`, `orders`, `order_payments`, `order_reviews` |
 | `mv_seller_performance_monthly` | Desempeno mensual de vendedores. | `sellers`, `order_items`, `orders`, `order_reviews` |
-| `mv_geo_sales_summary` | Ventas agregadas por ciudad o estado. | `orders`, `customers`, `sellers`, `geolocation` |
-
+| `mv_geo_sales_summary` | Ventas agregadas por ciudad o estado. | `orders`, `customers`, `geolocation_clean` |
 ---
 
 ## 6. Diseno preliminar en MongoDB
@@ -300,15 +310,17 @@ No se debe declarar `JSONB` como tipo de MongoDB, porque `JSONB` es un tipo espe
 | `order_reviews` | Tabla asociada a ordenes. | Documentos enriquecidos. | Texto libre y campos opcionales favorecen documentos de lectura. |
 | `geolocation` | Tabla limpia/consolidada. | `geo_analytics`. | Analisis geografico se beneficia de agregacion. |
 
-### 7.2 Decision sobre IDs
+### 7.2 Decision sobre IDs y llaves tecnicas
 
-Se recomienda mantener los IDs originales de Olist como `TEXT`:
+Se recomienda conservar los IDs originales de Olist como identificadores externos `TEXT UNIQUE`:
 
 - `order_id`
 - `customer_id`
 - `product_id`
 - `seller_id`
 - `review_id`
+
+Sin embargo, no se usan como claves primarias fisicas. El modelo incorpora llaves tecnicas internas tipo `BIGINT GENERATED ALWAYS AS IDENTITY`, por ejemplo `order_sk`, `customer_sk`, `product_sk` y `seller_sk`. Las FK internas apuntan a estas llaves tecnicas.
 
 No se adopta `uuid-ossp` como decision inicial. Si se menciona, debe quedar como alternativa evaluada o futura, no como requisito del modelo base.
 
@@ -379,9 +391,9 @@ El diccionario de datos debe incluir, como minimo:
 
 Los scripts SQL deben estar alineados con estas decisiones:
 
-- Mantener IDs Olist como `TEXT`.
-- Crear PK y FK en tablas transaccionales.
-- Agregar restricciones `CHECK`.
+- Mantener IDs Olist como `TEXT UNIQUE` para trazabilidad.
+- Crear PK tecnicas `BIGINT IDENTITY` y FK internas mediante columnas `*_sk`.
+- Agregar restricciones `CHECK` y `UNIQUE` para claves naturales como `(order_sk, payment_sequential)`.
 - Agregar `products.specifications JSONB`.
 - Agregar `products.photo_urls TEXT[]`.
 - Agregar `orders.lifecycle JSONB`.
@@ -409,16 +421,4 @@ Se recomiendan ejemplos de:
 - Consulta de catalogo enriquecido en MongoDB.
 - Consulta de perfil de cliente en MongoDB.
 - Consulta de desempeno de vendedor.
-
----
-
-## 10. Pendientes de cierre
-
-| Pendiente | Responsable | Estado |
-|---|---|---|
-| Confirmar frecuencia de refresh de vistas materializadas. | Equipo | Pendiente |
-| Definir si `photo_urls TEXT[]` sera supuesto del negocio o dato enriquecido posterior. | Equipo | Pendiente |
-| Consolidar reglas finales para `geolocation`. | Equipo | Pendiente |
-| Redactar scripts DDL finales segun este documento. | Equipo | Pendiente |
-| Corregir cualquier uso de `JSONB` en diseno MongoDB. | Equipo | Pendiente |
 

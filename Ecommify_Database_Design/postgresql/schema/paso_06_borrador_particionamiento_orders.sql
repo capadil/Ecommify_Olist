@@ -2,10 +2,16 @@
 -- Paso 06: borrador tecnico para particionamiento de orders.
 -- Estado: documento de decision, no ejecutar junto con paso_02_crear_tablas_base.sql sin ajustar el modelo.
 --
--- Decision del README: analizar particionamiento por fecha para soportar estrategia hot/cold.
+-- Decision actual:
+--   El modelo logico usa order_sk BIGINT IDENTITY como PK interna y order_id TEXT UNIQUE
+--   como identificador original de Olist.
+--
+-- Decision del README:
+--   Analizar particionamiento por fecha para soportar estrategia hot/cold.
+--
 -- Advertencia PostgreSQL:
 --   Una PRIMARY KEY o UNIQUE en una tabla particionada debe incluir la clave de particion.
---   Si orders se particiona por order_purchase_timestamp, una FK simple por order_id desde
+--   Si orders se particiona por order_purchase_timestamp, una FK simple por order_sk desde
 --   order_items u order_payments no alcanza sin redisenar claves o replicar la clave de particion.
 --
 -- Por eso, el paso 02 mantiene orders como tabla no particionada para conservar FKs simples.
@@ -16,8 +22,9 @@ SET search_path TO ecommify, public;
 -- Alternativa no activa:
 --
 -- CREATE TABLE orders_partitioned (
+--     order_sk BIGINT GENERATED ALWAYS AS IDENTITY,
 --     order_id TEXT NOT NULL,
---     customer_id TEXT NOT NULL REFERENCES customers(customer_id),
+--     customer_sk BIGINT NOT NULL REFERENCES customers(customer_sk),
 --     order_status TEXT NOT NULL,
 --     order_purchase_timestamp TIMESTAMP NOT NULL,
 --     order_approved_at TIMESTAMP,
@@ -27,7 +34,8 @@ SET search_path TO ecommify, public;
 --     lifecycle JSONB NOT NULL DEFAULT '[]'::jsonb,
 --     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 --     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
---     PRIMARY KEY (order_id, order_purchase_timestamp)
+--     PRIMARY KEY (order_sk, order_purchase_timestamp),
+--     UNIQUE (order_id, order_purchase_timestamp)
 -- ) PARTITION BY RANGE (order_purchase_timestamp);
 --
 -- CREATE TABLE orders_2016 PARTITION OF orders_partitioned

@@ -1,21 +1,25 @@
 ﻿-- Ecommify Database Design
 -- Paso 02: crear tablas base normalizadas en PostgreSQL.
--- Fuente de verdad: PostgreSQL.
--- Los IDs de Olist se preservan como TEXT. uuid-ossp no se usa en el diseno inicial.
+-- Decision: PostgreSQL conserva el nucleo transaccional del proyecto.
+-- Decision: los IDs originales de Olist se mantienen como TEXT UNIQUE para trazabilidad.
+-- Decision: las PK relacionales usan llaves tecnicas BIGINT GENERATED ALWAYS AS IDENTITY.
+-- Decision: JSONB y arrays se usan solo como tipos avanzados controlados, sin reemplazar relaciones transaccionales.
 
 SET search_path TO ecommify, public;
 
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS category_translation (
-    product_category_name TEXT PRIMARY KEY,
+    category_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    product_category_name TEXT NOT NULL UNIQUE,
     product_category_name_english TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS customers (
-    customer_id TEXT PRIMARY KEY,
+    customer_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    customer_id TEXT NOT NULL UNIQUE,
     customer_unique_id TEXT NOT NULL,
     customer_zip_code_prefix INTEGER,
     customer_city TEXT,
@@ -25,7 +29,8 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 CREATE TABLE IF NOT EXISTS sellers (
-    seller_id TEXT PRIMARY KEY,
+    seller_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    seller_id TEXT NOT NULL UNIQUE,
     seller_zip_code_prefix INTEGER,
     seller_city TEXT,
     seller_state CHAR(2),
@@ -34,8 +39,9 @@ CREATE TABLE IF NOT EXISTS sellers (
 );
 
 CREATE TABLE IF NOT EXISTS products (
-    product_id TEXT PRIMARY KEY,
-    product_category_name TEXT REFERENCES category_translation(product_category_name)
+    product_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    product_id TEXT NOT NULL UNIQUE,
+    category_sk BIGINT REFERENCES category_translation(category_sk)
         ON UPDATE CASCADE
         ON DELETE SET NULL,
     product_name_lenght INTEGER CHECK (product_name_lenght IS NULL OR product_name_lenght >= 0),
@@ -53,8 +59,9 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS orders (
-    order_id TEXT PRIMARY KEY,
-    customer_id TEXT NOT NULL REFERENCES customers(customer_id)
+    order_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_id TEXT NOT NULL UNIQUE,
+    customer_sk BIGINT NOT NULL REFERENCES customers(customer_sk)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     order_status TEXT NOT NULL,
@@ -70,14 +77,15 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
-    order_id TEXT NOT NULL REFERENCES orders(order_id)
+    order_item_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_sk BIGINT NOT NULL REFERENCES orders(order_sk)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
     order_item_id INTEGER NOT NULL,
-    product_id TEXT REFERENCES products(product_id)
+    product_sk BIGINT REFERENCES products(product_sk)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
-    seller_id TEXT REFERENCES sellers(seller_id)
+    seller_sk BIGINT REFERENCES sellers(seller_sk)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     shipping_limit_date TIMESTAMP,
@@ -85,11 +93,12 @@ CREATE TABLE IF NOT EXISTS order_items (
     freight_value NUMERIC(12, 2) NOT NULL CHECK (freight_value >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (order_id, order_item_id)
+    CONSTRAINT uq_order_items_order_line UNIQUE (order_sk, order_item_id)
 );
 
 CREATE TABLE IF NOT EXISTS order_payments (
-    order_id TEXT NOT NULL REFERENCES orders(order_id)
+    payment_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_sk BIGINT NOT NULL REFERENCES orders(order_sk)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
     payment_sequential INTEGER NOT NULL,
@@ -98,12 +107,13 @@ CREATE TABLE IF NOT EXISTS order_payments (
     payment_value NUMERIC(12, 2) NOT NULL CHECK (payment_value >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (order_id, payment_sequential)
+    CONSTRAINT uq_order_payments_order_sequence UNIQUE (order_sk, payment_sequential)
 );
 
 CREATE TABLE IF NOT EXISTS order_reviews (
-    review_id TEXT PRIMARY KEY,
-    order_id TEXT NOT NULL UNIQUE REFERENCES orders(order_id)
+    review_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    review_id TEXT NOT NULL,
+    order_sk BIGINT NOT NULL REFERENCES orders(order_sk)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
     review_score INTEGER NOT NULL CHECK (review_score BETWEEN 1 AND 5),
@@ -112,11 +122,12 @@ CREATE TABLE IF NOT EXISTS order_reviews (
     review_creation_date TIMESTAMP,
     review_answer_timestamp TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_order_reviews_source UNIQUE (review_id, order_sk)
 );
 
 CREATE TABLE IF NOT EXISTS geolocation_clean (
-    geolocation_id BIGSERIAL PRIMARY KEY,
+    geolocation_sk BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     geolocation_zip_code_prefix INTEGER NOT NULL,
     geolocation_lat NUMERIC(10, 7),
     geolocation_lng NUMERIC(10, 7),
@@ -127,4 +138,3 @@ CREATE TABLE IF NOT EXISTS geolocation_clean (
 );
 
 COMMIT;
-
