@@ -1,0 +1,49 @@
+@page {
+  size: A4;
+  margin: 18mm;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 4px;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}
+
+pre,
+code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+h1,
+h2,
+h3 {
+  page-break-after: avoid;
+}
+
+tr {
+  page-break-inside: avoid;
+}
