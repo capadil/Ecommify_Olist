@@ -1045,3 +1045,83 @@ erDiagram
 ## 9. Validaciones reproducibles del análisis
 
 Las siguientes celdas conservan el código necesario para reproducir la carga, el EDA, la construcción de `orders_full` y las validaciones de normalización. Se mantiene una sola versión del bloque de carga y exploración para evitar duplicidad entre notebooks.
+
+# Actividad U3
+## Etapa 2: Estructuración. Planificación de estrategias de sharding y replica sets 
+### Arquitectura Distribuida de MongoDB - Ecommify
+
+Este documento detalla el diseño de la arquitectura distribuida, la estrategia de particionamiento (sharding) y la configuración de alta disponibilidad (replica sets) para el componente MongoDB del proyecto Ecommify.
+
+---
+
+## 1. Estudio de arquitectura distribuida de MongoDB
+
+### Documentación de conceptos de Replica Sets
+La arquitectura de alta disponibilidad en MongoDB se basa en un conjunto de réplicas estructurado por los siguientes roles:
+
+* **Primary:** Es el nodo central y el único que recibe operaciones de escritura por defecto. En Ecommify, este nodo será el que reciba el flujo de datos del proceso de actualización continua o sincronización (CDC) desde PostgreSQL. Todo cambio se guarda en su `oplog` (operations log).
+* **Secondary:** Mantiene una réplica de los datos aplicando asíncronamente las operaciones del `oplog`. Proveen redundancia para alta disponibilidad y pueden configurarse para recibir cargas de lectura pesadas, aislando el tráfico.
+* **Arbiter:** Es un nodo que no almacena datos y no requiere recursos de disco intensivos. Su única función es participar en las elecciones para completar un quórum impar y asegurar que se asigne un nuevo Primary rápidamente si el actual falla.
+
+###  Opciones de Read Preferences e implicaciones
+* **`Primary` (Default):** Lectura estricta al nodo principal. Asegura consistencia fuerte (siempre lees el último dato escrito), pero sobrecarga al servidor de escrituras.
+* **`PrimaryPreferred`:** Lee del Primary, pero si este cae temporalmente, hace *failover* leyendo de los Secondaries.
+* **`Secondary` / `SecondaryPreferred`:** Obliga (o prioriza) leer de un secundario. Esto reduce enormemente la carga del Primary y es ideal para reportes y analítica asíncrona, a cambio de tolerar una lectura *eventualmente consistente*.
+* **`Nearest`:** El driver mide latencias de red y enruta la lectura al nodo que responda más rápido geográficamente.
+
+###  Niveles de Write Concerns y garantías de durabilidad
+Determinan cuántos nodos deben acusar recibo antes de que el motor confirme el éxito de una escritura:
+* **`w: 1`:** Velocidad máxima; el Primary acusa recibo apenas procesa el comando en memoria. *Riesgo:* Si el nodo se apaga bruscamente antes de replicar o escribir a disco, el dato se pierde.
+* **`w: "majority"`:** El Primary no confirmará la escritura hasta que la mayoría de los nodos votantes la hayan replicado. Asegura durabilidad ante caídas del servidor y previene "rollbacks".
+* **`j: true` (Journaling):** Obliga a que la confirmación se envíe solo cuando los datos se han volcado físicamente en el archivo transaccional del disco, ofreciendo máxima garantía estructural.
+
+---
+
+## 2. Diseño de estrategia de sharding para Ecommify
+
+### Análisis de distribución de datos (Contexto Dataset Olist)
+* **Distribución de productos:** El catálogo del e-commerce brasileño tiene una marcada distribución de "cola larga". Categorías como `cama_mesa_banho`, `beleza_saude` o `informatica_acessorios` concentran gran parte del inventario y de las órdenes.
+* **Índice de concentración y Hotspots:** Si se usara únicamente el campo *categoría* como Shard Key, el fragmento de la base de datos (Shard) que almacene `cama_mesa_banho` pasaría a ser un *Jumbo Chunk*. Este nodo recibiría un volumen de peticiones y un peso de datos drásticamente superior al resto, creando un "hotspot" y anulando la ventaja del escalado horizontal.
+* **Distribución geográfica de Sellers:** Ocurre el mismo fenómeno; más del 60% de los vendedores del dataset operan desde São Paulo (SP). Usar `seller_state` de forma asilada causaría un cuello de botella logístico masivo en un solo Shard.
+
+### Selección y justificación de Shard Key
+**Selección:** La opción técnica más resiliente para las colecciones `product_catalog` y `seller_performance` es un **Compound Shard Key (Ranged + Hashed)**.
+
+* **Ejemplo para el Catálogo:** `{ "category_name": 1, "product_id": "hashed" }`
+* **Ejemplo para Vendedores:** `{ "seller_state": 1, "seller_id": "hashed" }`
+
+**Justificación:** El prefijo de rango (`category_name` en 1) permite mantener la "Localidad de Datos". Si el usuario en la UI web busca accesorios deportivos, el *mongos Router* enruta la query directamente al Shard correspondiente, evitando *scatter-gather* (consultarle a todos los nodos de la red). El sufijo *hashed*, por su parte, toma la gran concentración de productos de esa categoría pesada y distribuye su almacenamiento uniformemente entre los distintos *chunks* del sistema usando un algoritmo MD5, disipando completamente los *hotspots*.
+
+**Mitigación de desventajas:** La principal limitante del campo *hashed* es la ineficiencia para consultas por rangos en ese atributo específico (ej. "dame vendedores con ID mayor a 500"). En Ecommify se mitiga gracias a la arquitectura híbrida: consultas lógicas de rango exacto y analítica pesada se continúan resolviendo a través de las vistas materializadas en el motor transaccional y relacional subyacente.
+
+---
+
+## 3. Configuración teórica de réplica set y write concerns
+
+###  Diseño de configuración de Replica Set propuesto
+* **Topología:** Implementaremos teóricamente un clúster de **3 nodos distribuidos en configuración Multi-AZ** (ej. AWS `us-east-1a`, `us-east-1b`, `us-east-1c`). Esto otorga tolerancia a fallos a nivel de data center físico.
+
+###  Análisis de consistencia eventual
+* **Replication Lag:** La ventana de inconsistencia entre que se ingresa un dato en el Primary y se copia a un Secondary suele oscilar en pocos milisegundos, dependiendo del tráfico de la red subyacente.
+* **Operaciones Críticas Sensibles:** Si un cliente en Ecommify acaba de realizar un pago complejo (gestión OLTP) o actualizar su perfil, y recarga su panel de usuario que consume desde MongoDB, podría leer de un Secondary que aún no tiene el cambio (mostrando un dato "viejo" que generaría pánico o falsas solicitudes a soporte).
+* **Estrategia de Mitigación:** Para transacciones donde el usuario debe ver lo que acaba de publicar (*Read Your Own Writes*), se usarán **Causal Consistency Sessions**. El cliente enviará en su consulta su marca de tiempo lógica (`clusterTime`); si la petición llega a un Secondary y este presenta retraso de replicación, el nodo pondrá la respuesta en espera unos milisegundos de manera interna hasta sincronizarse y poder devolver la información actualizada.
+
+### Documentación de estrategia completa
+
+| Tipo de Operación en Colección | Read / Write Preference | Justificación Arquitectónica |
+| :--- | :--- | :--- |
+| **Catálogo Web UI** (`product_catalog`) | Read: `Nearest` | La disponibilidad y la latencia dictan la retención del cliente en el E-commerce. Se lee del servidor más veloz. |
+| **Dashboards Analíticos** (`seller_performance`, `geo_analytics`) | Read: `Secondary` | Aísla las consultas agrupadas complejas fuera del nodo Primary, protegiendo las operaciones críticas del sistema. |
+| **Sincronización CDC / Escrituras** | Write: `w: "majority", j: true` | Consistencia dura. Salvaguarda la integridad de los datos inyectados para prevenir desincronización irreversible. |
+
+### Plan de monitoreo con métricas clave
+* **Replication Lag:** Validar la salud constante y medir si la latencia AP se está estirando perjudicialmente.
+* **Oplog Window:** Validar que la ventana de tiempo del log permita cubrir tiempos de inactividad de nodos secundarios.
+* **Query Targeting Ratio:** Comparar el número de documentos escaneados versus los retornados. Un ratio muy alto significa ineficiencia en el Shard Key o falta de índices.
+
+> [!NOTE]  
+> ### Limitaciones del Free Tier y aproximación teórica
+> Cabe destacar para el entregable que todas las definiciones de sharding y clústeres distribuidos son estrictamente conceptuales y de aproximación teórica para el diseño de arquitectura. Los clústeres de MongoDB Atlas en capa gratuita (Free Tier `M0`):
+> * No permiten el despliegue de arquitectura *Sharded* (no hay aprovisionamiento de *mongos routers* ni configuración de *Config Servers*).
+> * Presentan un límite en la gestión volumétrica (máximo 512MB de almacenamiento).
+> * No permiten configuraciones personalizadas de afinidad geográfica Multi-AZ, limitando el número máximo de conexiones simultáneas por clúster a 500.
