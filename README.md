@@ -13,26 +13,43 @@ La estructura principal del proyecto es la siguiente:
 ```
 README.md
 Ecommify_Database_Design/
-		README.md
-		docs/
-				Documento_Tecnico_Diseno_Etapa_2.md
-		mongodb/
-				queries/
-				schema/
-				seed_data/
-notebooks/
-		Data_Exploration_Analysis.ipynb
-		postgresql/
-raw/
-		olist_customers_dataset.csv
-		olist_geolocation_dataset.csv
-		olist_order_items_dataset.csv
-		olist_order_payments_dataset.csv
-		olist_order_reviews_dataset.csv
-		olist_orders_dataset.csv
-		olist_products_dataset.csv
-		olist_sellers_dataset.csv
-		product_category_name_translation.csv
+|-- README.md
+|-- docs/
+|   |-- Actividad_U3_Etapa_2.md
+|   |-- Documento_Tecnico_Diseno_Etapa_2.md
+|   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
+|   |-- Modelo_Entidad_Relacion.md
+|   |-- modelo_entidad_relacion.mmd
+|   |-- pdf-style.css
+|   `-- Presentación ejecutiva.pptx
+|-- postgresql/
+|   |-- README.md
+|   |-- schema/
+|   |   |-- README.md
+|   |   |-- paso_01_crear_esquema.sql
+|   |   |-- paso_02_crear_tablas_base.sql
+|   |   |-- paso_03_crear_indices.sql
+|   |   |-- paso_04_crear_triggers_updated_at.sql
+|   |   |-- paso_05_crear_vistas_materializadas.sql
+|   |   `-- paso_06_borrador_particionamiento_orders.sql
+|   |-- queries/
+|   |   |-- README.md
+|   |   |-- paso_07_refrescar_vistas_materializadas.sql
+|   |   `-- paso_08_consultas_analiticas_ejemplo.sql
+|   `-- seed_data/
+|       `-- README.md
+|-- mongodb/
+|   |-- README.md
+|   |-- schema/
+|   |   |-- README.md
+|   |   `-- paso_09_crear_colecciones_validadores.js
+|   |-- queries/
+|   |   |-- README.md
+|   |   `-- paso_10_consultas_analiticas_ejemplo.js
+|   `-- seed_data/
+|       `-- README.md
+`-- notebooks/
+    `-- Data_Exploration_Analysis.ipynb
 ```
 
 ## Contenido y propósito de las carpetas

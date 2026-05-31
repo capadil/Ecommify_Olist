@@ -1,3 +1,9 @@
+# Ecommify_Olist
+**Integrantes Grupo1:** 
+  * Jorge Andres Ayala Valero - jorgeayva@unisabana.edu.co
+  * Pablo Andres Melo Garcia - pablomega@unisabana.edu.co
+  * Camilo Andres Padilla Garcia - camilopaga@unisabana.edu.co
+
 # Actividad U3
 ## Etapa 2: Estructuracion. Planificacion de estrategias de sharding y replica sets
 ### Arquitectura distribuida de MongoDB para Ecommify

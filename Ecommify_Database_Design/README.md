@@ -6,11 +6,13 @@
 Ecommify_Database_Design/
 |-- README.md
 |-- docs/
+|   |-- Actividad_U3_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
-|   `-- pdf-style.css
+|   |-- pdf-style.css
+|   `-- Presentación ejecutiva.pptx
 |-- postgresql/
 |   |-- README.md
 |   |-- schema/
@@ -58,11 +60,13 @@ Ecommify_Database_Design/
 
 ### Artefactos tecnicos
 
+- `docs/Actividad_U3_Etapa_2.md`: entregable independiente de la Actividad U3 sobre estrategias de sharding y replica sets.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.md`: documento tecnico editable del diseno conceptual y logico.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.pdf`: version PDF del documento tecnico.
 - `docs/Modelo_Entidad_Relacion.md`: modelo entidad-relacion en Markdown.
 - `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
 - `docs/pdf-style.css`: estilos de exportacion PDF para tablas y bloques largos.
+- `docs/Presentación ejecutiva.pptx`: presentacion ejecutiva del proyecto.
 - `postgresql/seed_data/` y `mongodb/seed_data/`: criterios tecnicos de carga y sincronizacion de datos.
 ## Indice
 
