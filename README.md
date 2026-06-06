@@ -16,6 +16,7 @@ Ecommify_Database_Design/
 |-- README.md
 |-- docs/
 |   |-- Actividad_U3_Etapa_2.md
+|   |-- Actividad_U4_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
