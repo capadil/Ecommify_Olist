@@ -1,5 +1,5 @@
 # Ecommify_Olist
-**Integrantes Grupo1:** 
+**Integrantes Equipo E16:** 
   * Jorge Andres Ayala Valero - jorgeayva@unisabana.edu.co
   * Pablo Andres Melo Garcia - pablomega@unisabana.edu.co
   * Camilo Andres Padilla Garcia - camilopaga@unisabana.edu.co
