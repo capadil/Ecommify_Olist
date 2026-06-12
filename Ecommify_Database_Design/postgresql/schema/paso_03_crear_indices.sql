@@ -1,4 +1,4 @@
-﻿-- Ecommify Database Design
+-- Ecommify Database Design
 -- Paso 03: crear indices iniciales.
 -- Objetivo: soportar consultas OLTP por claves internas y busquedas por identificadores Olist.
 
@@ -75,3 +75,34 @@ CREATE INDEX IF NOT EXISTS idx_order_reviews_score
 
 CREATE INDEX IF NOT EXISTS idx_geolocation_clean_zip_state
     ON geolocation_clean (geolocation_zip_code_prefix, geolocation_state);
+
+-- Indice espacial con PostGIS.
+-- geog es una columna generada desde latitud/longitud limpias en geolocation_clean.
+CREATE INDEX IF NOT EXISTS idx_geolocation_clean_geog_gist
+    ON geolocation_clean USING GIST (geog)
+    WHERE geog IS NOT NULL;
+
+-- Indices de similitud textual con pg_trgm.
+-- Requieren que el paso 01 haya habilitado la extension pg_trgm.
+-- No cambian el modelo ER; optimizan busquedas aproximadas y tolerantes a errores.
+CREATE INDEX IF NOT EXISTS idx_customers_city_trgm
+    ON customers USING GIN (customer_city gin_trgm_ops)
+    WHERE customer_city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_sellers_city_trgm
+    ON sellers USING GIN (seller_city gin_trgm_ops)
+    WHERE seller_city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_category_name_trgm
+    ON category_translation USING GIN (product_category_name gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_category_name_english_trgm
+    ON category_translation USING GIN (product_category_name_english gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_order_reviews_title_trgm
+    ON order_reviews USING GIN (review_comment_title gin_trgm_ops)
+    WHERE review_comment_title IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_order_reviews_message_trgm
+    ON order_reviews USING GIN (review_comment_message gin_trgm_ops)
+    WHERE review_comment_message IS NOT NULL;

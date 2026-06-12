@@ -27,9 +27,9 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 
 | Paso | Archivo | Proposito |
 |---|---|---|
-| 01 | `schema/paso_01_crear_esquema.sql` | Crear esquema `ecommify`. |
-| 02 | `schema/paso_02_crear_tablas_base.sql` | Crear tablas normalizadas, llaves tecnicas, restricciones y tipos avanzados controlados. |
-| 03 | `schema/paso_03_crear_indices.sql` | Crear indices iniciales para IDs Olist, FK internas, OLTP y analitica. |
+| 01 | `schema/paso_01_crear_esquema.sql` | Crear esquema `ecommify` y habilitar `pg_trgm` / PostGIS. |
+| 02 | `schema/paso_02_crear_tablas_base.sql` | Crear tablas normalizadas, llaves tecnicas, restricciones, tipos avanzados controlados y columna espacial `geog`. |
+| 03 | `schema/paso_03_crear_indices.sql` | Crear indices iniciales para IDs Olist, FK internas, OLTP, analitica, PostGIS y busqueda textual con `pg_trgm`. |
 | 04 | `schema/paso_04_crear_triggers_updated_at.sql` | Crear funcion y triggers para `updated_at`. |
 | 05 | `schema/paso_05_crear_vistas_materializadas.sql` | Crear vistas materializadas para tableros. |
 | 06 | `schema/paso_06_borrador_particionamiento_orders.sql` | Alternativa tecnica de particionamiento y sus implicaciones fisicas. |
@@ -41,6 +41,8 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 - Los IDs de Olist se mantienen como `TEXT UNIQUE`.
 - Las PK y FK relacionales usan `BIGINT GENERATED ALWAYS AS IDENTITY`.
 - No se usa `uuid-ossp` en el alcance inicial.
+- `pg_trgm` se habilita para busqueda textual aproximada mediante indices GIN `gin_trgm_ops`.
+- PostGIS se habilita para representar `geolocation_clean.geog GEOGRAPHY(Point, 4326)` e indexarla con GiST.
 - No se habilita `hstore`.
 - `JSONB` se usa en `products.specifications` y `orders.lifecycle`.
 - `TEXT[]` se usa en `products.photo_urls`.

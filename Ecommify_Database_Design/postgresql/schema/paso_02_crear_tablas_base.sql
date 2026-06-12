@@ -1,4 +1,4 @@
-﻿-- Ecommify Database Design
+-- Ecommify Database Design
 -- Paso 02: crear tablas base normalizadas en PostgreSQL.
 -- Decision: PostgreSQL conserva el nucleo transaccional del proyecto.
 -- Decision: los IDs originales de Olist se mantienen como TEXT UNIQUE para trazabilidad.
@@ -131,6 +131,16 @@ CREATE TABLE IF NOT EXISTS geolocation_clean (
     geolocation_zip_code_prefix INTEGER NOT NULL,
     geolocation_lat NUMERIC(10, 7),
     geolocation_lng NUMERIC(10, 7),
+    geog GEOGRAPHY(Point, 4326) GENERATED ALWAYS AS (
+        CASE
+            WHEN geolocation_lat IS NOT NULL AND geolocation_lng IS NOT NULL THEN
+                ST_SetSRID(
+                    ST_MakePoint(geolocation_lng::DOUBLE PRECISION, geolocation_lat::DOUBLE PRECISION),
+                    4326
+                )::GEOGRAPHY
+            ELSE NULL
+        END
+    ) STORED,
     geolocation_city TEXT,
     geolocation_state CHAR(2),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -47,9 +47,9 @@ Ecommify_Database_Design/
 
 | Orden | Carpeta / archivo | Proposito |
 |---|---|---|
-| 01 | `postgresql/schema/paso_01_crear_esquema.sql` | Crear el esquema `ecommify`. |
+| 01 | `postgresql/schema/paso_01_crear_esquema.sql` | Crear el esquema `ecommify` y habilitar `pg_trgm` / PostGIS. |
 | 02 | `postgresql/schema/paso_02_crear_tablas_base.sql` | Crear tablas base, llaves tecnicas, IDs Olist `TEXT UNIQUE`, restricciones y tipos avanzados. |
-| 03 | `postgresql/schema/paso_03_crear_indices.sql` | Crear indices para IDs Olist, FK internas, fechas, `JSONB` y arrays. |
+| 03 | `postgresql/schema/paso_03_crear_indices.sql` | Crear indices para IDs Olist, FK internas, fechas, `JSONB`, arrays, PostGIS y busqueda textual con `pg_trgm`. |
 | 04 | `postgresql/schema/paso_04_crear_triggers_updated_at.sql` | Crear triggers de mantenimiento de `updated_at`. |
 | 05 | `postgresql/schema/paso_05_crear_vistas_materializadas.sql` | Crear vistas materializadas para analitica. |
 | 06 | `postgresql/schema/paso_06_borrador_particionamiento_orders.sql` | Alternativa tecnica de particionamiento de `orders` para evaluar el diseno fisico hot/cold. |
@@ -151,6 +151,54 @@ Decision de trabajo: en el modelo de Ecommify, las columnas normalizadas deben s
 | Excluir promociones con ranges del alcance inicial | `promotions` | El dataset base no incluye promociones ni campañas. | No se crea modulo inicial de promociones. | No se crea coleccion documental inicial. | Descartado para esta version |
 | Descartar `hstore` | PostgreSQL | `JSONB` cubre mejor los casos flexibles previstos. | No se habilita la extension `hstore`. | Sin impacto documental. | Descartado |
 | Descartar composite type para dimensiones | `products` | Las columnas simples facilitan constraints, indices y lectura del modelo. | No se crea composite type; se conservan columnas numericas. | `dimensions` puede existir solo como subdocumento derivado. | Descartado |
+#### 3.1 Implementacion de extensiones PostgreSQL
+
+Las extensiones se documentan como capacidades disponibles de PostgreSQL que se aplican mediante objetos concretos del diseno fisico: columnas, funciones, operadores e indices. Segun la documentacion oficial de PostgreSQL, `CREATE EXTENSION` carga una extension disponible en la base de datos y registra los objetos SQL que esta aporta.
+
+En Ecommify se adoptan dos extensiones en la version actual del modelo fisico:
+
+- `pg_trgm`, para busquedas textuales aproximadas sin modificar entidades ni relaciones.
+- `postgis`, para representar una coordenada geografica derivada en `geolocation_clean` y permitir indices espaciales.
+
+| Extension | Implementacion en Ecommify | Modulo relacionado | Decision |
+|---|---|---|---|
+| `pg_trgm` | Habilitada en `paso_01_crear_esquema.sql` y aplicada en `paso_03_crear_indices.sql` con indices GIN `gin_trgm_ops` sobre ciudades, categorias y texto de resenas. | Catalogo, resenas y soporte analitico. | Adoptada; no modifica entidades ni relaciones. |
+| `postgis` | Habilitada en `paso_01_crear_esquema.sql`; agrega `geolocation_clean.geog GEOGRAPHY(Point, 4326)` como columna generada desde latitud/longitud limpias; crea indice GiST para consultas espaciales. | Geografia, logistica y `geo_analytics`. | Adoptada; modifica la tabla `geolocation_clean` y se refleja en el ER. |
+| `btree_gin` | Solo seria necesaria si se disenan indices GIN compuestos que mezclen campos escalares con `JSONB` o arrays. | Catalogo con `specifications JSONB` y `photo_urls TEXT[]`. | Evaluada, no implementada por ahora. |
+| `pgcrypto` | Podria generar UUID o hashes en integraciones futuras. | Integraciones futuras y auditoria tecnica. | Evaluada, no requerida porque el modelo adopta llaves tecnicas `BIGINT IDENTITY` e IDs Olist `TEXT UNIQUE`. |
+
+Impacto aplicado sobre el modelo actual:
+
+| Artefacto | Cambio aplicado |
+|---|---|
+| `postgresql/schema/paso_01_crear_esquema.sql` | Habilita `pg_trgm` y `postgis`. |
+| `postgresql/schema/paso_02_crear_tablas_base.sql` | Agrega `geolocation_clean.geog GEOGRAPHY(Point, 4326)` como columna generada. |
+| `postgresql/schema/paso_03_crear_indices.sql` | Agrega indice GiST sobre `geog` e indices GIN `gin_trgm_ops` para busqueda aproximada. |
+| Modelo entidad-relacion | Se actualiza `GEOLOCATION_CLEAN` con el atributo espacial `geog`. |
+| MongoDB | Sin cambio estructural; `geo_analytics` puede consumir datos espaciales derivados desde PostgreSQL. |
+
+Ejemplos implementados:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+CREATE INDEX IF NOT EXISTS idx_customers_city_trgm
+ON ecommify.customers USING GIN (customer_city gin_trgm_ops)
+WHERE customer_city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_geolocation_clean_geog_gist
+ON ecommify.geolocation_clean USING GIST (geog)
+WHERE geog IS NOT NULL;
+```
+
+Referencias oficiales consultadas:
+
+- PostgreSQL Documentation - `CREATE EXTENSION`: https://www.postgresql.org/docs/current/sql-createextension.html
+- PostgreSQL Documentation - `pg_trgm`: https://www.postgresql.org/docs/current/pgtrgm.html
+- PostgreSQL Documentation - `btree_gin`: https://www.postgresql.org/docs/current/btree-gin.html
+- PostgreSQL Documentation - `pgcrypto`: https://www.postgresql.org/docs/current/pgcrypto.html
+- PostGIS Documentation - Getting Started: https://postgis.net/documentation/getting_started/
 ### 4. Discusiones tecnicas abiertas
 
 - Que atributos variables reales tendria un producto tecnologico en Ecommify: marca, modelo, garantia, color, memoria, compatibilidad, condicion?
@@ -236,7 +284,7 @@ flowchart LR
 | OLTP | Mantener datos maestros de productos y vendedores. | `products`, `sellers`, `category_translation`. | 3FN con extensiones controladas: `products.specifications JSONB` y `products.photo_urls TEXT[]`. |
 | OLAP | Analizar ventas por categoria, mes, estado, vendedor y producto. | Vistas materializadas sobre `orders`, `order_items`, `products`, `sellers`, `customers`, `order_payments`. | Precalcular agregados para dashboards y evitar joins costosos en cada consulta. |
 | OLAP | Segmentar clientes por comportamiento de compra. | `customers`, `orders`, `order_payments`, `order_reviews`. | Vista materializada o coleccion MongoDB derivada para perfiles analiticos. |
-| OLAP | Analisis geografico y logistico. | `customers`, `sellers`, `geolocation_clean`, `orders`. | Limpiar geolocalizacion, agregar por region y considerar PostGIS en fase posterior. |
+| OLAP | Analisis geografico y logistico. | `customers`, `sellers`, `geolocation_clean`, `orders`. | Limpiar geolocalizacion, agregar por region y usar PostGIS mediante `geog` e indice GiST. |
 
 Decision de trabajo: el modelo OLTP no debe sacrificarse para facilitar dashboards. Las consultas analiticas deben apoyarse en vistas materializadas, particiones, indices, jobs de mantenimiento y, cuando tenga sentido, documentos MongoDB derivados.
 
@@ -344,7 +392,7 @@ Decision de trabajo: documentar estos jobs como parte del plan de mantenimiento,
 | Free tier o instancia inicial se queda corta | Consultas lentas, refresh muy largo, almacenamiento alto. | Optimizar indices, reducir frecuencia de refresh o subir plan. |
 | `orders` crece rapidamente | Escaneos por fecha tardan demasiado. | Activar particionamiento mensual y revisar pruning de particiones. |
 | Dashboards afectan OLTP | Carga alta durante consultas analiticas. | Usar vistas materializadas, replicas de lectura o MongoDB derivado. |
-| Geolocalizacion pesa demasiado | Consultas geograficas lentas o duplicados altos. | Consolidar `geolocation_clean`, agregar indices y evaluar PostGIS. |
+| Geolocalizacion pesa demasiado | Consultas geograficas lentas o duplicados altos. | Consolidar `geolocation_clean`, usar `geog` generado con PostGIS y agregar indice GiST. |
 | Catalogo requiere atributos muy variables | Muchas migraciones para nuevas columnas. | Usar `products.specifications JSONB` con gobernanza de claves permitidas. |
 
 Decision de trabajo: el escalamiento debe empezar por diseño fisico, indices, particiones y vistas materializadas antes de desnormalizar el nucleo transaccional.
@@ -379,7 +427,22 @@ Esta seccion incorpora decisiones utiles del documento de trabajo de la unidad 2
 | Consistencia | Garantizar integridad referencial en transacciones ACID. | PostgreSQL prioriza consistencia para ordenes, items, pagos, clientes, productos y vendedores. | Uso de PK, FK, `NOT NULL`, `CHECK` e indices transaccionales. |
 | Flexibilidad | Manejar datos dispersos o variables en catalogo y reseñas. | La flexibilidad no reemplaza el modelo relacional; se usa en `JSONB`, arrays y MongoDB derivado. | `products.specifications JSONB`, `products.photo_urls TEXT[]` y documentos `product_catalog`. |
 | Escalabilidad | Soportar crecimiento de `orders` y `order_items` sin degradar rendimiento. | Se adopta modelado hibrido OLTP/OLAP con particiones, vistas materializadas y documentos derivados. | `orders` particionada por fecha, MVs para dashboards y jobs de mantenimiento. |
-| Rendimiento | Optimizar busquedas geograficas y por texto. | Se mantiene como decision tecnica para indices y extensiones. | Posible uso de `pg_trgm`, indices por fecha/clave y futura evaluacion de PostGIS para geografia. |
+| Rendimiento | Optimizar busquedas geograficas y por texto. | Se mantiene como decision tecnica para indices y extensiones. | Uso adoptado de `pg_trgm`, indices por fecha/clave y PostGIS con `geog` para geografia. |
+
+### Analisis ACID por modulo
+
+PostgreSQL se mantiene como fuente de verdad para los modulos transaccionales porque permite aplicar transacciones ACID, restricciones declarativas, llaves foraneas, indices y control de concurrencia. La capa MongoDB no reemplaza estas garantias; solo almacena documentos derivados para lectura y analitica.
+
+| Modulo | Atomicidad | Consistencia | Aislamiento | Durabilidad |
+|---|---|---|---|---|
+| Ordenes | La creacion o actualizacion de una orden debe completarse como unidad logica con su cliente y estado operativo. | FK hacia `customers`, `order_purchase_timestamp NOT NULL`, `order_status NOT NULL` y reglas de fechas. | Cambios concurrentes de estado no deben exponer una orden parcialmente actualizada. | Una orden confirmada debe persistir como registro operacional. |
+| Items de orden | Los items de una orden se registran completos o se revierte la operacion asociada. | FK hacia `orders`, `products` y `sellers`; `CHECK (price >= 0)` y `CHECK (freight_value >= 0)`. | Evita lecturas parciales de items durante inserciones o ajustes. | El detalle de productos vendidos queda preservado para trazabilidad y analitica. |
+| Pagos | Cada pago se registra completo con su secuencia o se revierte. | `UNIQUE (order_sk, payment_sequential)`, FK hacia `orders` y `CHECK (payment_value >= 0)`. | Evita duplicar pagos o leer pagos incompletos en operaciones concurrentes. | Los pagos confirmados deben conservarse por su impacto financiero. |
+| Catalogo | Los cambios de producto, categoria, dimensiones y atributos flexibles se aplican de forma coherente. | FK hacia `category_translation`, checks de valores medibles y uso controlado de `JSONB`/`TEXT[]`. | Evita que consultas lean mezclas inconsistentes entre producto, categoria y especificaciones. | El producto maestro se conserva en PostgreSQL como fuente de verdad. |
+| Clientes y vendedores | Altas o cambios de datos maestros se aplican de forma completa. | IDs Olist `TEXT UNIQUE`, llaves tecnicas `_sk` y relacion con ordenes/items. | Evita inconsistencias durante actualizaciones de datos maestros. | La trazabilidad de actores comerciales permanece disponible. |
+| Resenas | La resena se registra asociada a una orden existente. | FK hacia `orders` y `CHECK (review_score BETWEEN 1 AND 5)`. | Evita conflictos al consultar o actualizar feedback. | El historial de experiencia del cliente queda persistido. |
+| Geolocalizacion limpia | La consolidacion geografica debe producir una version consistente antes de alimentar reportes. | Reglas de limpieza por prefijo postal, ciudad, estado y coordenadas. | Evita que dashboards lean datos a medio consolidar. | La version limpia queda disponible para analisis geografico posterior. |
+| Vistas materializadas y OLAP | El refresh de agregados debe terminar completo antes de publicarse. | Las vistas se derivan desde tablas fuente validadas en PostgreSQL. | Evita que dashboards afecten o bloqueen transacciones OLTP. | Los agregados quedan persistidos hasta el siguiente refresh controlado. |
 
 ### Restricciones de negocio adoptadas
 
@@ -712,6 +775,26 @@ Ajuste derivado de la Etapa 1: PostgreSQL sigue siendo la fuente de verdad relac
 
 ---
 
+### Aplicacion formal de CAP por modulo
+
+El criterio CAP se aplica distinguiendo la fuente de verdad transaccional de las estructuras derivadas. En el nucleo OLTP se prioriza consistencia; en la capa documental y analitica se acepta consistencia eventual cuando mejora disponibilidad de lectura sin comprometer pagos, ordenes ni catalogo maestro.
+
+| Modulo / estructura | Base principal | Prioridad CAP | Criterio explicito |
+|---|---|---|---|
+| Ordenes | PostgreSQL | Consistencia sobre disponibilidad ante particion | No se deben confirmar ordenes incompletas ni estados contradictorios. |
+| Items de orden | PostgreSQL | Consistencia | La relacion orden-producto-vendedor debe mantenerse valida con FK y restricciones. |
+| Pagos | PostgreSQL | Consistencia estricta | El dato financiero no tolera duplicidad, perdida de secuencia ni valores invalidos. |
+| Clientes y vendedores | PostgreSQL | Consistencia | Son datos maestros relacionados con transacciones y no deben generar registros huerfanos. |
+| Catalogo base | PostgreSQL | Consistencia | El producto maestro, categoria y dimensiones deben conservar reglas relacionales. |
+| Resenas base | PostgreSQL | Consistencia en la fuente | La resena oficial se asocia a una orden valida; los documentos derivados pueden retrasarse. |
+| `product_catalog` | MongoDB derivado | Disponibilidad con consistencia eventual | Es una vista enriquecida de lectura; puede refrescarse desde PostgreSQL. |
+| `customer_profiles` | MongoDB derivado | Disponibilidad con consistencia eventual | El perfil analitico puede tener desfase mientras no afecte operaciones OLTP. |
+| `seller_performance` | MongoDB derivado | Disponibilidad con consistencia eventual | Los indicadores de desempeno pueden recalcularse por lotes. |
+| `geo_analytics` | MongoDB derivado / vistas OLAP | Disponibilidad analitica con consistencia eventual | El analisis geografico tolera refresh programado despues de limpiar `geolocation`. |
+| Vistas materializadas | PostgreSQL OLAP | Consistencia derivada con desfase controlado | Los datos son consistentes con el ultimo refresh, no necesariamente en tiempo real. |
+
+---
+
 ## 13. Conclusión técnica inicial
 
 El EDA permitió comprender la estructura, volumen, relaciones y calidad de los datos del dataset Olist utilizado para el caso Ecommify.
@@ -1032,6 +1115,7 @@ erDiagram
         int geolocation_zip_code_prefix
         decimal geolocation_lat
         decimal geolocation_lng
+        geography geog
         string geolocation_city
         string geolocation_state
         timestamp created_at

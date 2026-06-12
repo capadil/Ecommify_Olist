@@ -101,6 +101,21 @@ La Etapa 2 se enfoca en el diseno conceptual y logico. No reemplaza la implement
 
 ---
 
+### 3.4 Analisis ACID por modulo
+
+El requisito ACID se aplica de forma diferenciada por modulo. PostgreSQL concentra las operaciones que requieren atomicidad, consistencia, aislamiento y durabilidad; MongoDB queda como capa derivada y no sustituye las garantias transaccionales del nucleo.
+
+| Modulo | Atomicidad | Consistencia | Aislamiento | Durabilidad |
+|---|---|---|---|---|
+| Ordenes | La creacion o cambio de una orden se confirma como unidad logica. | FK hacia `customers`, fecha de compra obligatoria y estado obligatorio. | Evita leer estados parciales durante cambios operativos. | La orden confirmada queda persistida como evento central del negocio. |
+| Items de orden | Los items asociados a una orden se registran completos o se revierten. | FK hacia `orders`, `products` y `sellers`; precio y flete no negativos. | Evita lecturas parciales del detalle de compra. | Los items vendidos quedan disponibles para trazabilidad y analitica. |
+| Pagos | Cada pago se registra completo con su secuencia. | FK hacia `orders`, `UNIQUE (order_sk, payment_sequential)` y valor no negativo. | Evita duplicidad o lectura incompleta de pagos concurrentes. | El dato financiero confirmado debe conservarse. |
+| Catalogo | Los cambios de producto y categoria se aplican de forma coherente. | FK hacia categorias, dimensiones validadas y uso controlado de `JSONB`/`TEXT[]`. | Evita inconsistencias entre producto maestro y atributos flexibles. | El producto maestro persiste en PostgreSQL como fuente de verdad. |
+| Clientes y vendedores | Los datos maestros se actualizan como unidad. | IDs Olist `TEXT UNIQUE`, llaves tecnicas `_sk` y relaciones validas. | Evita referencias huerfanas en ordenes o items. | La trazabilidad de actores se mantiene. |
+| Resenas | La resena se registra asociada a una orden existente. | FK hacia `orders` y `CHECK (review_score BETWEEN 1 AND 5)`. | Evita conflictos al actualizar feedback. | El historial de experiencia queda persistido. |
+| Geolocalizacion limpia | La consolidacion geografica termina antes de alimentar analitica. | Reglas de limpieza por prefijo, ciudad, estado y coordenadas. | Evita que reportes usen datos parcialmente procesados. | La version limpia queda disponible para analisis posterior. |
+| Vistas materializadas | El refresh se publica solo si termina completo. | Se derivan desde tablas fuente validadas. | Separa consultas OLAP de operaciones OLTP. | Los agregados persisten hasta el siguiente refresh. |
+
 ## 4. Diseno conceptual
 
 ### 4.1 Entidades principales
@@ -165,7 +180,7 @@ PostgreSQL se define como el motor principal para el modelo transaccional normal
 | `category_translation` | Traduccion y normalizacion de categorias. | `category_sk` | `product_category_name TEXT UNIQUE` | Tabla de referencia para catalogo. |
 | `sellers` | Vendedores. | `seller_sk` | `seller_id TEXT UNIQUE` | Entidad estructurada transaccional. |
 | `order_reviews` | Resenas y calificaciones. | `review_sk` | `UNIQUE (review_id, order_sk)` | Permite trazabilidad sin depender del ID textual como PK fisica. |
-| `geolocation_clean` | Datos geograficos limpios o consolidados. | `geolocation_sk` | Prefijo postal indexado | Se recomienda consolidar duplicados antes de uso analitico. |
+| `geolocation_clean` | Datos geograficos limpios o consolidados, con columna espacial PostGIS `geog`. | `geolocation_sk` | Prefijo postal indexado y `geog` indexado con GiST | Se recomienda consolidar duplicados antes de uso analitico. |
 
 ### 5.3 Estrategia de llaves tecnicas
 
@@ -197,6 +212,50 @@ El modelo se normaliza hasta 3FN:
 | Composite type | No usado inicialmente | Se descarta para dimensiones; las dimensiones quedan como columnas simples. |
 | Range types | Evaluado, no implementado | Promociones quedan fuera del alcance inicial. |
 
+### 5.5.1 Implementacion de extensiones PostgreSQL
+
+Las extensiones se documentan como capacidades disponibles que se aplican mediante objetos concretos del diseno fisico: columnas, funciones, operadores e indices. Segun la documentacion oficial de PostgreSQL, `CREATE EXTENSION` carga una extension disponible en la base de datos y registra los objetos SQL que esta aporta.
+
+En la version actual del modelo fisico se implementan `pg_trgm` y PostGIS:
+
+| Extension | Implementacion propuesta | Modulo relacionado | Decision |
+|---|---|---|---|
+| `pg_trgm` | Habilitada en `paso_01_crear_esquema.sql`; aplicada en `paso_03_crear_indices.sql` mediante indices GIN `gin_trgm_ops` sobre ciudades, categorias y texto de resenas. | Catalogo, resenas y soporte analitico. | Adoptada; no cambia entidades ni relaciones. |
+| `postgis` | Habilitada en `paso_01_crear_esquema.sql`; agrega `geolocation_clean.geog GEOGRAPHY(Point, 4326)` como columna generada desde coordenadas limpias; crea indice GiST. | Geografia, logistica y `geo_analytics`. | Adoptada; cambia la tabla `geolocation_clean` y se refleja en el ER. |
+| `btree_gin` | Evaluar solo para indices GIN compuestos que combinen campos escalares con `JSONB` o arrays. | Catalogo con `specifications JSONB` y `photo_urls TEXT[]`. | Evaluada, no implementada por ahora. |
+| `pgcrypto` | Mantener como alternativa para UUID o hashes en integraciones futuras. | Integraciones futuras y auditoria tecnica. | Evaluada, no requerida por la decision de llaves `BIGINT IDENTITY`. |
+
+Impacto aplicado:
+
+| Artefacto | Cambio |
+|---|---|
+| `postgresql/schema/paso_01_crear_esquema.sql` | Habilita `pg_trgm` y PostGIS. |
+| `postgresql/schema/paso_02_crear_tablas_base.sql` | Agrega columna espacial generada `geog` en `geolocation_clean`. |
+| `postgresql/schema/paso_03_crear_indices.sql` | Agrega indice GiST para `geog` e indices trigram para busqueda aproximada. |
+| ER transaccional | Actualiza `GEOLOCATION_CLEAN` para incluir `geog`. |
+
+Ejemplos implementados:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+CREATE INDEX IF NOT EXISTS idx_customers_city_trgm
+ON ecommify.customers USING GIN (customer_city gin_trgm_ops)
+WHERE customer_city IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_geolocation_clean_geog_gist
+ON ecommify.geolocation_clean USING GIST (geog)
+WHERE geog IS NOT NULL;
+```
+
+Referencias oficiales consultadas:
+
+- PostgreSQL Documentation - `CREATE EXTENSION`: https://www.postgresql.org/docs/current/sql-createextension.html
+- PostgreSQL Documentation - `pg_trgm`: https://www.postgresql.org/docs/current/pgtrgm.html
+- PostgreSQL Documentation - `btree_gin`: https://www.postgresql.org/docs/current/btree-gin.html
+- PostgreSQL Documentation - `pgcrypto`: https://www.postgresql.org/docs/current/pgcrypto.html
+- PostGIS Documentation - Getting Started: https://postgis.net/documentation/getting_started/
 ### 5.6 Auditoria operacional
 
 Se recomienda agregar `created_at` y `updated_at` en tablas maestras y transaccionales relevantes:
@@ -337,6 +396,27 @@ No se adopta `uuid-ossp` como decision inicial. Si se menciona, debe quedar como
 ### 7.4 Consideraciones CAP
 
 PostgreSQL prioriza consistencia para las operaciones transaccionales. MongoDB se usa como capa derivada de lectura, por lo que puede tolerar consistencia eventual en documentos analiticos. Esta separacion evita que la capa documental comprometa operaciones criticas como pagos, ordenes e integridad del catalogo base.
+
+Criterios aplicados:
+
+- Criticidad transaccional del dato.
+- Tolerancia a desfase entre fuente y lectura.
+- Necesidad de disponibilidad para consultas analiticas.
+- Definicion explicita de fuente de verdad.
+
+| Modulo / estructura | Base principal | Prioridad CAP | Criterio explicito |
+|---|---|---|---|
+| Ordenes | PostgreSQL | Consistencia sobre disponibilidad ante particion | No se deben confirmar ordenes incompletas ni estados contradictorios. |
+| Items de orden | PostgreSQL | Consistencia | La relacion orden-producto-vendedor requiere FK y restricciones validas. |
+| Pagos | PostgreSQL | Consistencia estricta | El dato financiero no tolera duplicidad, perdida de secuencia ni valores invalidos. |
+| Clientes y vendedores | PostgreSQL | Consistencia | Son datos maestros relacionados con transacciones; no deben generar registros huerfanos. |
+| Catalogo base | PostgreSQL | Consistencia | El producto maestro, categoria y dimensiones deben conservar reglas relacionales. |
+| Resenas base | PostgreSQL | Consistencia en la fuente | La resena oficial se asocia a una orden valida; los documentos derivados pueden retrasarse. |
+| `product_catalog` | MongoDB derivado | Disponibilidad con consistencia eventual | Es una vista enriquecida de lectura; se reconstruye o refresca desde PostgreSQL. |
+| `customer_profiles` | MongoDB derivado | Disponibilidad con consistencia eventual | El perfil analitico puede tener desfase mientras no afecte operaciones OLTP. |
+| `seller_performance` | MongoDB derivado | Disponibilidad con consistencia eventual | Los indicadores de desempeno pueden recalcularse por lotes. |
+| `geo_analytics` | MongoDB derivado / vistas OLAP | Disponibilidad analitica con consistencia eventual | El analisis geografico tolera refresh programado despues de limpiar `geolocation`. |
+| Vistas materializadas | PostgreSQL OLAP | Consistencia derivada con desfase controlado | Los datos son consistentes con el ultimo refresh, no necesariamente en tiempo real. |
 
 ---
 

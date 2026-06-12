@@ -33,5 +33,6 @@ La carga de tablas hijas se apoya en staging tables o consultas `INSERT ... SELE
 - Mantener IDs de Olist como `TEXT UNIQUE` para trazabilidad.
 - No convertir IDs Olist a UUID de forma artificial.
 - Limpiar o consolidar geolocalizacion antes de cargar `geolocation_clean`.
+- La columna `geog` se genera automaticamente desde `geolocation_lng` y `geolocation_lat`; no debe cargarse manualmente desde CSV.
 - Cargar `products.photo_urls` solo si Ecommify define URLs reales; Olist solo trae `product_photos_qty`.
 - Refrescar vistas materializadas despues de cargar las tablas transaccionales.

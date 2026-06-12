@@ -131,6 +131,7 @@ erDiagram
         int geolocation_zip_code_prefix
         decimal geolocation_lat
         decimal geolocation_lng
+        geography geog
         string geolocation_city
         string geolocation_state
         timestamp created_at
@@ -152,7 +153,7 @@ erDiagram
 | Categoria | `category_translation` | `category_sk` | `product_category_name TEXT UNIQUE` | Normaliza y traduce categorias de producto. |
 | Vendedor | `sellers` | `seller_sk` | `seller_id TEXT UNIQUE` | Contiene vendedores asociados a items de orden. |
 | Resena | `order_reviews` | `review_sk` | `UNIQUE (review_id, order_sk)` | Registra calificacion y comentarios de la orden. |
-| Geolocalizacion | `geolocation_clean` | `geolocation_sk` | Prefijo postal indexado | Consolida ubicaciones por prefijo postal, ciudad y estado. |
+| Geolocalizacion | `geolocation_clean` | `geolocation_sk` | Prefijo postal indexado y `geog` espacial | Consolida ubicaciones por prefijo postal, ciudad, estado y coordenada PostGIS. |
 
 ---
 
@@ -198,6 +199,7 @@ erDiagram
 | MongoDB es capa derivada. | Las colecciones documentales no reemplazan PK, FK ni constraints. |
 | Uso controlado de `JSONB`. | `products.specifications` y `orders.lifecycle`. |
 | Uso controlado de arrays. | `products.photo_urls TEXT[]`. |
+| Uso de PostGIS. | `geolocation_clean.geog GEOGRAPHY(Point, 4326)` se genera desde latitud/longitud limpias e indexa con GiST. |
 | Pagos normalizados. | `order_payments` permanece como tabla relacional con `payment_sk` y secuencia unica por orden. |
 | Dimensiones normalizadas. | Peso, alto, ancho y largo permanecen como columnas de `products`. |
 | Auditoria operacional. | Tablas principales incluyen `created_at` y `updated_at`. |
