@@ -38,6 +38,7 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 | 06 | `schema/paso_06_borrador_particionamiento_orders.sql` | Alternativa tecnica de particionamiento y sus implicaciones fisicas. |
 | 07 | `queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar/refrescar vistas materializadas despues de cargar datos. |
 | 08 | `queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
+| 09 | `queries/paso_09_benchmark_antes_despues_indices.sql` | Benchmark comparativo persistido en `benchmark_results`. |
 
 ## Scripts de carga CSV
 
@@ -58,6 +59,7 @@ Las tablas hijas resuelven sus FK internas con `INSERT ... SELECT` desde staging
 |---|---|
 | `evidencias.md` | Documento academico con interpretacion de pruebas PostgreSQL, PostGIS, `pg_trgm`, vistas materializadas e indices OLTP. |
 | `evidencias` | Salida cruda de consola usada como respaldo de trazabilidad. |
+| Tabla `benchmark_results` | Resultados antes/despues de benchmarks PostgreSQL para construir tablas y graficos comparativos. |
 
 ## Decisiones aplicadas
 

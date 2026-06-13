@@ -9,6 +9,7 @@ Ecommify_Database_Design/
 |-- README.md
 |-- docker/
 |   |-- README.md
+|   |-- arquitectura_docker.md
 |   |-- docker-compose.yml
 |   |-- .env.example
 |   |-- .gitignore
@@ -19,7 +20,9 @@ Ecommify_Database_Design/
 |   `-- sync_postgres_to_mongo.py
 |-- docs/
 |   |-- Actividad_U3_Etapa_2.md
+|   |-- Actividad_U4_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
+|   |-- Documento_Tecnico_Implementacion_U5_Actividad_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
@@ -36,7 +39,8 @@ Ecommify_Database_Design/
 |   |   `-- paso_06_borrador_particionamiento_orders.sql
 |   |-- queries/
 |   |   |-- paso_07_refrescar_vistas_materializadas.sql
-|   |   `-- paso_08_consultas_analiticas_ejemplo.sql
+|   |   |-- paso_08_consultas_analiticas_ejemplo.sql
+|   |   `-- paso_09_benchmark_antes_despues_indices.sql
 |   |-- evidencias
 |   |-- evidencias.md
 |   `-- seed_data/
@@ -49,7 +53,8 @@ Ecommify_Database_Design/
 |   |-- schema/
 |   |   `-- paso_09_crear_colecciones_validadores.js
 |   |-- queries/
-|   |   `-- paso_10_consultas_analiticas_ejemplo.js
+|   |   |-- paso_10_consultas_analiticas_ejemplo.js
+|   |   `-- paso_11_benchmark_antes_despues_indices.js
 |   |-- evidencias
 |   `-- evidencias.md
 `-- notebooks/
@@ -95,6 +100,8 @@ docker compose logs mongo
 
 La guia detallada esta en `docker/README.md`.
 
+Los diagramas de arquitectura operativa Docker para la Unidad 5 - Actividad 2 estan en `docker/arquitectura_docker.md` e incluyen creacion del ambiente, migracion/sincronizacion y comunicacion final.
+
 Sincronizacion documental despues de cargar PostgreSQL:
 
 ```powershell
@@ -118,14 +125,18 @@ docker compose run --rm mongo_sync
 | 10 | `postgresql/seed_data/paso_09_validar_carga.sql` | Validar conteos finales y geografia PostGIS. |
 | 11 | `postgresql/queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar o refrescar vistas materializadas despues de cargar datos. |
 | 12 | `postgresql/queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
-| 13 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
-| 14 | `tools/sync_postgres_to_mongo.py` | Sincronizar documentos derivados hacia MongoDB desde PostgreSQL. |
-| 15 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
+| 13 | `postgresql/queries/paso_09_benchmark_antes_despues_indices.sql` | Persistir benchmark antes/despues de indices PostgreSQL. |
+| 14 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
+| 15 | `tools/sync_postgres_to_mongo.py` | Sincronizar documentos derivados hacia MongoDB desde PostgreSQL. |
+| 16 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
+| 17 | `mongodb/queries/paso_11_benchmark_antes_despues_indices.js` | Persistir benchmark antes/despues de indices MongoDB. |
 
 ### Artefactos tecnicos
 
 - `docs/Actividad_U3_Etapa_2.md`: entregable independiente de la Actividad U3 sobre estrategias de sharding y replica sets.
+- `docs/Actividad_U4_Etapa_2.md`: entregable independiente de la Actividad U4.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.md`: documento tecnico editable del diseno conceptual y logico.
+- `docs/Documento_Tecnico_Implementacion_U5_Actividad_2.md`: documento tecnico de implementacion para la Unidad 5 - Actividad 2.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.pdf`: version PDF del documento tecnico.
 - `docs/Modelo_Entidad_Relacion.md`: modelo entidad-relacion en Markdown.
 - `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
@@ -134,9 +145,25 @@ docker compose run --rm mongo_sync
 - `postgresql/seed_data/`: scripts de staging, carga CSV, insercion al modelo final y validacion.
 - `postgresql/evidencias.md`: lectura academica de las evidencias PostgreSQL; `postgresql/evidencias` conserva la salida cruda.
 - `mongodb/evidencias.md`: lectura academica de las evidencias MongoDB; `mongodb/evidencias` conserva la salida cruda.
+
+### Consolidacion Unidad 5 - Actividad 2
+
+La Unidad 5 - Actividad 2 queda consolidada como una implementacion local reproducible sobre Docker Compose. El objetivo de esta actividad es demostrar que el diseno puede ejecutarse con el dataset real, validar la carga PostgreSQL, poblar MongoDB como capa documental derivada y conservar evidencias tecnicas del proceso.
+
+| Aspecto requerido | Evidencia / archivo | Estado |
+|---|---|---|
+| Levantar Docker | `docker/README.md`, `docker/docker-compose.yml`, `docker/arquitectura_docker.md` | Documentado |
+| Cargar PostgreSQL | `postgresql/README.md`, `postgresql/seed_data/paso_06_*` a `paso_09_*` | Implementado y validado |
+| Sincronizar MongoDB | `tools/sync_postgres_to_mongo.py`, `tools/requirements-sync.txt`, `docker/README.md` | Implementado con `upsert` |
+| Evidencias PostgreSQL | `postgresql/evidencias.md` y `postgresql/evidencias` | Documentado y respaldado |
+| Evidencias MongoDB | `mongodb/evidencias.md` y `mongodb/evidencias` | Documentado y respaldado |
+| Benchmarks comparativos | `benchmark_results` en PostgreSQL y MongoDB | Pendiente de ejecucion para cerrar medicion antes/despues |
+| Decisiones tecnicas validadas | PostGIS, `pg_trgm`, vistas materializadas, indices, validadores MongoDB, indice compuesto en `review_documents` | Validado con dataset real |
+
 ## Indice
 
 - [Estructura actual del proyecto](#estructura-actual-del-proyecto)
+  - [Consolidacion Unidad 5 - Actividad 2](#consolidacion-unidad-5---actividad-2)
 - [Etapa 1 - Investigacion y decisiones tecnicas](#etapa-1---investigacion-y-decisiones-tecnicas)
   - [Analisis de tipos avanzados en PostgreSQL](#1-analisis-de-tipos-avanzados-en-postgresql)
   - [Comparacion inicial: JSONB vs columnas normalizadas](#2-comparacion-inicial-jsonb-vs-columnas-normalizadas)

@@ -1116,3 +1116,165 @@ docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authe
     review_score: 1
   }
 ]
+
+-----
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec mongo mongosh --quiet -u ecommify_admin -p ecommify_password --authenticationDatabase admin --eval "const dbx=db.getSiblingDB('ecommify_analytics'); dbx.benchmark_results.find({}, {_id:0, benchmark_name:1, scenario:1, execution_time_millis:1, total_docs_examined:1, total_keys_examined:1, efficiency_ratio:1}).sort({created_at:1}).forEach(printjson)"
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec mongo mongosh --quiet -u ecommify_admin -p ecommify_password --authenticationDatabase admin --eval "const dbx=db.getSiblingDB('ecommify_analytics'); printjson(dbx.benchmark_results.find({}, {_id:0, explain_summary:0}).sort({created_at:1}).toArray())" > "..\mongodb\benchmark_results.json"
+[
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'product_catalog category lookup',
+    scenario: 'baseline_natural_scan',
+    query_label: 'product_catalog_by_category',
+    expected_access_path: 'Collection natural scan',
+    n_returned: 20,
+    total_docs_examined: 353,
+    total_keys_examined: 0,
+    execution_time_millis: 0,
+    efficiency_ratio: 0.056657223796033995,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'COLLSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.418Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'product_catalog category lookup',
+    scenario: 'optimized_with_index',
+    query_label: 'product_catalog_by_category',
+    expected_access_path: 'category.translated_name_1',
+    n_returned: 20,
+    total_docs_examined: 20,
+    total_keys_examined: 20,
+    execution_time_millis: 0,
+    efficiency_ratio: 1,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'FETCH',
+      'IXSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.422Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'customer_profiles state lookup',
+    scenario: 'baseline_natural_scan',
+    query_label: 'customer_profiles_by_state',
+    expected_access_path: 'Collection natural scan',
+    n_returned: 20,
+    total_docs_examined: 39,
+    total_keys_examined: 0,
+    execution_time_millis: 0,
+    efficiency_ratio: 0.5128205128205128,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'COLLSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.425Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'customer_profiles state lookup',
+    scenario: 'optimized_with_index',
+    query_label: 'customer_profiles_by_state',
+    expected_access_path: 'location.state_1',
+    n_returned: 20,
+    total_docs_examined: 20,
+    total_keys_examined: 20,
+    execution_time_millis: 1,
+    efficiency_ratio: 1,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'FETCH',
+      'IXSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.428Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'geo_analytics city lookup',
+    scenario: 'baseline_natural_scan',
+    query_label: 'geo_analytics_by_state_city',
+    expected_access_path: 'Collection natural scan',
+    n_returned: 20,
+    total_docs_examined: 20888,
+    total_keys_examined: 0,
+    execution_time_millis: 9,
+    efficiency_ratio: 0.0009574875526618154,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'COLLSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.440Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'geo_analytics city lookup',
+    scenario: 'optimized_with_index',
+    query_label: 'geo_analytics_by_state_city',
+    expected_access_path: 'state_1_city_1',
+    n_returned: 20,
+    total_docs_examined: 20,
+    total_keys_examined: 20,
+    execution_time_millis: 0,
+    efficiency_ratio: 1,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'FETCH',
+      'IXSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.443Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'review_documents low score lookup',
+    scenario: 'baseline_natural_scan',
+    query_label: 'review_documents_by_low_score',
+    expected_access_path: 'Collection natural scan',
+    n_returned: 20,
+    total_docs_examined: 157,
+    total_keys_examined: 0,
+    execution_time_millis: 0,
+    efficiency_ratio: 0.12738853503184713,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'COLLSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.446Z')
+  },
+  {
+    run_id: 'mongo_20260613044739396',
+    engine: 'MongoDB',
+    benchmark_name: 'review_documents low score lookup',
+    scenario: 'optimized_with_index',
+    query_label: 'review_documents_by_low_score',
+    expected_access_path: 'review_score_1',
+    n_returned: 20,
+    total_docs_examined: 20,
+    total_keys_examined: 20,
+    execution_time_millis: 0,
+    efficiency_ratio: 1,
+    execution_stages: [
+      'LIMIT',
+      'PROJECTION_SIMPLE',
+      'FETCH',
+      'IXSCAN'
+    ],
+    created_at: ISODate('2026-06-13T04:47:39.449Z')
+  }
+]

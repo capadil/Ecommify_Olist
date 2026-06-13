@@ -131,3 +131,21 @@ SET
  Execution Time: 0.145 ms
 (10 rows)
 
+
+
+
+-------------------------------------------------------------------
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -f /workspace/postgresql/queries/paso_09_benchmark_antes_despues_indices.sql
+docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin /workspace/mongodb/queries/paso_11_benchmark_antes_despues_indices.js
+ 
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SELECT run_id, benchmark_name, scenario, execution_time_ms, top_node_type, actual_rows FROM ecommify.benchmark_results ORDER BY benchmark_id;"
+
+         run_id         |          benchmark_name           |               scenario                | execution_time_ms | top_node_type | actual_rows 
+------------------------+-----------------------------------+---------------------------------------+-------------------+---------------+-------------
+ pg_20260612_234355_040 | OLTP order lookup                 | baseline_without_indexscan_bitmapscan |            25.899 | Gather        |           3
+ pg_20260612_234355_040 | OLTP order lookup                 | optimized_with_indexes                |             0.043 | Nested Loop   |           3
+ pg_20260612_234355_040 | pg_trgm customer city search      | baseline_without_indexscan_bitmapscan |           136.633 | Limit         |          20
+ pg_20260612_234355_040 | pg_trgm customer city search      | optimized_with_indexes                |            46.813 | Limit         |          20
+ pg_20260612_234355_040 | PostGIS radius search             | baseline_without_indexscan_bitmapscan |            26.105 | Limit         |          20
+ pg_20260612_234355_040 | PostGIS radius search             | optimized_with_indexes                |             0.351 | Limit         |          20
+ pg_20260612_234355_040 | Materialized view sales dashboard | materialized_view_read                |             0.231 | Limit         |          10

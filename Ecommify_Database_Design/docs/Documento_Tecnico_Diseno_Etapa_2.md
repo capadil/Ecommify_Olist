@@ -9,7 +9,8 @@
 6. [Diseno preliminar en MongoDB](#6-diseno-preliminar-en-mongodb)
 7. [Decisiones arquitectonicas justificadas](#7-decisiones-arquitectonicas-justificadas)
 8. [Estrategia hibrida OLTP/OLAP](#8-estrategia-hibrida-oltpolap)
-9. [Anexos tecnicos](#9-anexos-tecnicos)
+9. [Unidad 5 - Actividad 2: Implementacion Docker y evidencias](#9-unidad-5---actividad-2-implementacion-docker-y-evidencias)
+10. [Anexos tecnicos](#10-anexos-tecnicos)
 
 ---
 
@@ -452,9 +453,81 @@ Criterios aplicados:
 
 ---
 
-## 9. Anexos tecnicos
+## 9. Unidad 5 - Actividad 2: Implementacion Docker y evidencias
 
-### 9.1 Diccionario de datos
+### 9.1 Objetivo de implementacion
+
+La Unidad 5 - Actividad 2 tiene como objetivo ejecutar localmente la arquitectura definida para Ecommify usando Docker Compose. Esta implementacion no cambia las decisiones del diseno: PostgreSQL permanece como fuente de verdad transaccional y MongoDB funciona como capa documental derivada para lectura y analitica.
+
+La implementacion permite validar cinco aspectos:
+
+- Levantamiento reproducible de servicios Docker.
+- Carga del dataset real Olist en PostgreSQL.
+- Refresco de vistas materializadas para analitica.
+- Sincronizacion PostgreSQL -> MongoDB.
+- Generacion de evidencias tecnicas y academicas.
+
+### 9.2 Artefactos de ejecucion
+
+| Archivo | Funcion |
+|---|---|
+| `docker/docker-compose.yml` | Define servicios, volumenes, puertos, healthchecks y montajes. |
+| `docker/README.md` | Documenta comandos de ejecucion y validacion. |
+| `docker/arquitectura_docker.md` | Presenta diagramas de creacion, migracion y comunicacion final. |
+| `postgresql/seed_data/` | Contiene scripts de staging, carga CSV, insercion final y validacion. |
+| `tools/sync_postgres_to_mongo.py` | Sincroniza documentos derivados hacia MongoDB. |
+| `postgresql/evidencias.md` | Interpreta evidencias PostgreSQL. |
+| `mongodb/evidencias.md` | Interpreta evidencias MongoDB. |
+
+### 9.3 Secuencia ejecutada
+
+| Orden | Paso | Resultado esperado |
+|---|---|---|
+| 1 | Levantar Docker con `docker compose up -d` | PostgreSQL y MongoDB activos y saludables. |
+| 2 | Crear staging PostgreSQL | Tablas temporales listas para CSV. |
+| 3 | Cargar CSV Olist | Datos crudos disponibles en staging. |
+| 4 | Insertar modelo final | Tablas normalizadas cargadas con llaves tecnicas. |
+| 5 | Validar carga | Conteos finales y `geog` poblado. |
+| 6 | Refrescar vistas materializadas | Vistas OLAP disponibles para consultas. |
+| 7 | Ejecutar validadores MongoDB | Colecciones e indices listos. |
+| 8 | Ejecutar `mongo_sync` | Documentos derivados cargados mediante `upsert`. |
+| 9 | Ejecutar consultas MongoDB | Evidencia de lectura analitica documental. |
+
+### 9.4 Evidencias generadas
+
+| Evidencia | Archivo | Validacion |
+|---|---|---|
+| PostgreSQL academica | `postgresql/evidencias.md` | PostGIS, `pg_trgm`, indices OLTP y vistas materializadas. |
+| PostgreSQL cruda | `postgresql/evidencias` | Salida original de consola. |
+| MongoDB academica | `mongodb/evidencias.md` | Indices, conteos, sincronizacion y consultas analiticas. |
+| MongoDB cruda | `mongodb/evidencias` | Salida original de consola. |
+
+### 9.5 Resultados validados
+
+| Componente | Resultado |
+|---|---|
+| PostgreSQL tablas finales | `customers`: 99.441; `orders`: 99.441; `order_items`: 112.650; `order_payments`: 103.886; `order_reviews`: 99.224; `products`: 32.951; `sellers`: 3.095; `category_translation`: 71; `geolocation_clean`: 27.912 |
+| PostGIS | `geolocation_clean.geog` con 27.912 registros y uso de indice GiST. |
+| Vistas materializadas | `mv_sales_by_category_monthly`: 1.274; `mv_customer_segments`: 99.441; `mv_seller_performance_monthly`: 16.441; `mv_geo_sales_summary`: 21.698 |
+| MongoDB colecciones | `product_catalog`: 32.951; `customer_profiles`: 99.441; `seller_performance`: 3.095; `geo_analytics`: 21.698; `review_documents`: 99.224 |
+
+### 9.6 Decisiones tecnicas validadas
+
+| Decision | Evidencia |
+|---|---|
+| PostgreSQL como fuente de verdad | Carga completa del modelo final con constraints, FK e indices. |
+| Separacion OLTP/OLAP | Vistas materializadas refrescadas y colecciones derivadas en MongoDB. |
+| PostGIS | Consulta espacial `ST_DWithin` usando indice GiST. |
+| `pg_trgm` | Busquedas aproximadas usando indices `gin_trgm_ops`. |
+| MongoDB como capa derivada | Colecciones pobladas desde PostgreSQL mediante sincronizador. |
+| Sincronizacion idempotente | Uso de `upsert` para evitar duplicados. |
+| Ajuste por datos reales | `review_documents` usa indice compuesto `{ review_id: 1, order_id: 1 }`. |
+
+---
+
+## 10. Anexos tecnicos
+
+### 10.1 Diccionario de datos
 
 El diccionario de datos debe incluir, como minimo:
 
@@ -467,7 +540,7 @@ El diccionario de datos debe incluir, como minimo:
 - Descripcion funcional.
 - Origen del dato.
 
-### 9.2 Scripts SQL preliminares
+### 10.2 Scripts SQL preliminares
 
 Los scripts SQL deben estar alineados con estas decisiones:
 
@@ -482,7 +555,7 @@ Los scripts SQL deben estar alineados con estas decisiones:
 - Definir particionamiento de `orders`.
 - Crear vistas materializadas.
 
-### 9.3 Esquemas MongoDB preliminares
+### 10.3 Esquemas MongoDB preliminares
 
 Los esquemas MongoDB deben:
 
@@ -492,7 +565,7 @@ Los esquemas MongoDB deben:
 - Aclarar frecuencia de actualizacion.
 - Marcar cada coleccion como derivada/no fuente de verdad.
 
-### 9.4 Consultas de ejemplo
+### 10.4 Consultas de ejemplo
 
 Se recomiendan ejemplos de:
 

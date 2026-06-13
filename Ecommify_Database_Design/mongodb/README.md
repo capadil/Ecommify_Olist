@@ -21,6 +21,7 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 |---|---|---|
 | 09 | `schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
 | 10 | `queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas de ejemplo sobre documentos derivados. |
+| 11 | `queries/paso_11_benchmark_antes_despues_indices.js` | Benchmark comparativo persistido en `benchmark_results`. |
 
 ## Fuentes documentales derivadas
 
@@ -38,6 +39,7 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 |---|---|
 | `evidencias.md` | Documento academico con interpretacion de indices, conteos, sincronizacion y consultas analiticas MongoDB. |
 | `evidencias` | Salida cruda de consola usada como respaldo de trazabilidad. |
+| Coleccion `benchmark_results` | Resultados antes/despues de benchmarks MongoDB para calcular `executionTimeMillis` y ratios de eficiencia. |
 
 ## Decisiones aplicadas
 
