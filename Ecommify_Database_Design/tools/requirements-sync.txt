@@ -1,0 +1,6 @@
+# Dependencias del sincronizador PostgreSQL -> MongoDB.
+# psycopg[binary] permite conectarse a PostgreSQL sin compilar drivers nativos.
+psycopg[binary]==3.2.3
+
+# pymongo permite escribir documentos en MongoDB desde Python.
+pymongo==4.10.1

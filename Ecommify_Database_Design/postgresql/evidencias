@@ -1,0 +1,133 @@
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT customer_id, customer_city, customer_state FROM customers WHERE customer_city % 'sao paulo' LIMIT 20;"
+SET
+                                                    QUERY PLAN                                                    
+------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.00..3.78 rows=20 width=47) (actual time=0.017..0.118 rows=20 loops=1)
+   ->  Seq Scan on customers  (cost=0.00..2989.01 rows=15821 width=47) (actual time=0.016..0.116 rows=20 loops=1)
+         Filter: (customer_city % 'sao paulo'::text)
+         Rows Removed by Filter: 72
+ Planning Time: 0.980 ms
+ Execution Time: 0.143 ms
+(6 rows)
+
+
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT geolocation_zip_code_prefix, geolocation_city, geolocation_state FROM geolocation_clean WHERE ST_DWithin(geog, ST_SetSRID(ST_MakePoint(-46.6333, -23.5505), 4326)::geography, 5000) LIMIT 20;"
+SET
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=4.82..845.78 rows=3 width=18) (actual time=26.379..26.421 rows=20 loops=1)
+   ->  Bitmap Heap Scan on geolocation_clean  (cost=4.82..845.78 rows=3 width=18) (actual time=26.378..26.417 rows=20 loops=1)
+         Filter: st_dwithin(geog, '0101000020E6100000454772F90F5147C0B0726891ED8C37C0'::geography, '5000'::double precision, true)
+         Rows Removed by Filter: 13
+         Heap Blocks: exact=5
+         ->  Bitmap Index Scan on idx_geolocation_clean_geog_gist  (cost=0.00..4.81 rows=55 width=0) (actual time=0.234..0.234 rows=1468 loops=1)
+               Index Cond: (geog && _st_expand('0101000020E6100000454772F90F5147C0B0726891ED8C37C0'::geography, '5000'::double precision))
+ Planning Time: 8.830 ms
+ Execution Time: 26.524 ms
+(9 rows)
+
+
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT customer_id, customer_city, customer_state FROMcustomers WHERE customer_city % 'sao paulo' ORDER BY similarity(customer_city, 'sao paulo') DESC;"
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=3281.48..3321.03 rows=15821 width=51) (actual time=57.448..57.948 rows=15623 loops=1)
+   Sort Key: (similarity(customer_city, 'sao paulo'::text)) DESC
+   Sort Method: quicksort  Memory: 1605kB
+   ->  Bitmap Heap Scan on customers  (cost=194.69..2178.00 rows=15821 width=51) (actual time=6.271..53.505 rows=15623 loops=1)
+         Recheck Cond: (customer_city % 'sao paulo'::text)
+         Rows Removed by Index Recheck: 6753
+         Heap Blocks: exact=1746
+         ->  Bitmap Index Scan on idx_customers_city_trgm  (cost=0.00..190.73 rows=15821 width=0) (actual time=6.086..6.086 rows=22376 loops=1)
+               Index Cond: (customer_city % 'sao paulo'::text)
+ Planning Time: 1.151 ms
+ Execution Time: 58.819 ms
+(11 rows)
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT review_id, review_score, review_comment_messageFROM order_reviews WHERE review_comment_message % 'produto excelente' ORDER BY similarity(review_comment_message, 'produto excelente') DESC LIMIT 20;"
+SET
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2148.71..2148.76 rows=20 width=112) (actual time=226.668..226.671 rows=20 loops=1)
+   ->  Sort  (cost=2148.71..2152.35 rows=1458 width=112) (actual time=226.666..226.668 rows=20 loops=1)
+         Sort Key: (similarity(review_comment_message, 'produto excelente'::text)) DESC
+         Sort Method: top-N heapsort  Memory: 29kB
+         ->  Bitmap Heap Scan on order_reviews  (cost=168.08..2109.91 rows=1458 width=112) (actual time=8.589..226.197 rows=1584 loops=1)
+               Recheck Cond: (review_comment_message % 'produto excelente'::text)
+               Rows Removed by Index Recheck: 19574
+               Heap Blocks: exact=1983
+               ->  Bitmap Index Scan on idx_order_reviews_message_trgm  (cost=0.00..167.72 rows=1458 width=0) (actual time=7.960..7.961 rows=21158 loops=1)
+                     Index Cond: (review_comment_message % 'produto excelente'::text)
+ Planning Time: 1.770 ms
+ Execution Time: 226.786 ms
+(12 rows)
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT review_id, review_score, review_comment_messageFROM order_reviews WHERE review_comment_message % 'produto excelente' ORDER BY similarity(review_comment_message, 'produto excelente') DESC LIMIT 20;"
+SET
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2148.71..2148.76 rows=20 width=112) (actual time=224.377..224.380 rows=20 loops=1)
+   ->  Sort  (cost=2148.71..2152.35 rows=1458 width=112) (actual time=224.375..224.377 rows=20 loops=1)
+         Sort Key: (similarity(review_comment_message, 'produto excelente'::text)) DESC
+         Sort Method: top-N heapsort  Memory: 29kB
+         ->  Bitmap Heap Scan on order_reviews  (cost=168.08..2109.91 rows=1458 width=112) (actual time=8.848..223.919 rows=1584 loops=1)
+               Recheck Cond: (review_comment_message % 'produto excelente'::text)
+               Rows Removed by Index Recheck: 19574
+               Heap Blocks: exact=1983
+               ->  Bitmap Index Scan on idx_order_reviews_message_trgm  (cost=0.00..167.72 rows=1458 width=0) (actual time=7.969..7.970 rows=21158 loops=1)
+                     Index Cond: (review_comment_message % 'produto excelente'::text)
+ Planning Time: 2.281 ms
+ Execution Time: 224.502 ms
+(12 rows)
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT sales_month, category_name, total_value FROM mv_sales_by_category_monthly WHERE sales_month BETWEEN DATE '2018-01-01' AND DATE '2018-12-01' ORDER BY total_value DESC LIMIT 10;"
+SET
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=45.48..45.50 rows=10 width=27) (actual time=0.285..0.286 rows=10 loops=1)
+   ->  Sort  (cost=45.48..46.79 rows=526 width=27) (actual time=0.283..0.284 rows=10 loops=1)
+         Sort Key: total_value DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         ->  Seq Scan on mv_sales_by_category_monthly  (cost=0.00..34.11 rows=526 width=27) (actual time=0.063..0.135 rows=526 loops=1)
+               Filter: ((sales_month >= '2018-01-01'::date) AND (sales_month <= '2018-12-01'::date))
+               Rows Removed by Filter: 748
+ Planning Time: 0.869 ms
+ Execution Time: 0.314 ms
+(9 rows)
+
+
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT o.order_id, o.order_status, c.customer_id, op.payment_value FROM orders o JOIN customers c ON c.customer_sk = o.customer_sk LEFT JOIN order_payments op ON op.order_sk = o.order_sk WHERE o.order_id = 'e481f51cbdc54678b7cc49136f2d6af7';"
+SET
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=1.00..25.07 rows=1 width=81) (actual time=0.068..0.078 rows=3 loops=1)
+   ->  Nested Loop  (cost=0.71..16.75 rows=1 width=83) (actual time=0.053..0.054 rows=1 loops=1)
+         ->  Index Scan using idx_orders_order_id on orders o  (cost=0.42..8.44 rows=1 width=58) (actual time=0.035..0.036 rows=1 loops=1)
+               Index Cond: (order_id = 'e481f51cbdc54678b7cc49136f2d6af7'::text)
+         ->  Index Scan using customers_pkey on customers c  (cost=0.29..8.31 rows=1 width=41) (actual time=0.015..0.015 rows=1 loops=1)
+               Index Cond: (customer_sk = o.customer_sk)
+   ->  Index Scan using idx_order_payments_order_sk on order_payments op  (cost=0.29..8.31 rows=1 width=14) (actual time=0.014..0.023 rows=3 loops=1)
+         Index Cond: (order_sk = o.order_sk)
+ Planning Time: 1.510 ms
+ Execution Time: 0.158 ms
+(10 rows)
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec postgres psql -U ecommify_user -d ecommify_db -c "SET search_path TO ecommify, public; EXPLAIN ANALYZE SELECT o.order_id, o.order_status, c.customer_id, op.payment_value FROM orders o JOIN customers c ON c.customer_sk = o.customer_sk LEFT JOIN order_payments op ON op.order_sk = o.order_sk WHERE o.order_id = 'e481f51cbdc54678b7cc49136f2d6af7';"
+SET
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop Left Join  (cost=1.00..25.07 rows=1 width=81) (actual time=0.056..0.067 rows=3 loops=1)
+   ->  Nested Loop  (cost=0.71..16.75 rows=1 width=83) (actual time=0.043..0.043 rows=1 loops=1)
+         ->  Index Scan using idx_orders_order_id on orders o  (cost=0.42..8.44 rows=1 width=58) (actual time=0.025..0.025 rows=1 loops=1)
+               Index Cond: (order_id = 'e481f51cbdc54678b7cc49136f2d6af7'::text)
+         ->  Index Scan using customers_pkey on customers c  (cost=0.29..8.31 rows=1 width=41) (actual time=0.015..0.015 rows=1 loops=1)
+               Index Cond: (customer_sk = o.customer_sk)
+   ->  Index Scan using idx_order_payments_order_sk on order_payments op  (cost=0.29..8.31 rows=1 width=14) (actual time=0.012..0.022 rows=3 loops=1)
+         Index Cond: (order_sk = o.order_sk)
+ Planning Time: 1.316 ms
+ Execution Time: 0.145 ms
+(10 rows)
+

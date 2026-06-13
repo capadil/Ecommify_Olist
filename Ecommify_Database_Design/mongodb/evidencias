@@ -1,0 +1,1118 @@
+test> use ecommify_analytics
+|
+switched to db ecommify_analytics
+ecommify_analytics> db.product_catalog.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { product_id: 1 }, name: 'product_id_1', unique: true },
+  {
+    v: 2,
+    key: { 'category.translated_name': 1 },
+    name: 'category.translated_name_1'
+  }
+]
+ecommify_analytics> db.customer_profiles.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { customer_id: 1 }, name: 'customer_id_1', unique: true },
+  { v: 2, key: { segment: 1 }, name: 'segment_1' },
+  { v: 2, key: { 'location.state': 1 }, name: 'location.state_1' }
+]
+ecommify_analytics> db.seller_performance.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { seller_id: 1 }, name: 'seller_id_1', unique: true },
+  { v: 2, key: { 'location.state': 1 }, name: 'location.state_1' }
+]
+ecommify_analytics> db.geo_analytics.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { geo_key: 1 }, name: 'geo_key_1', unique: true },
+  { v: 2, key: { state: 1, city: 1 }, name: 'state_1_city_1' }
+]
+ecommify_analytics>  db.review_documents.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { review_id: 1 }, name: 'review_id_1', unique: true },
+  { v: 2, key: { order_id: 1 }, name: 'order_id_1' },
+  { v: 2, key: { review_score: 1 }, name: 'review_score_1' }
+]
+
+
+--- count de documentos en cada colección para verificar que se cargaron correctamente
+test> use ecommify_analytics
+switched to db ecommify_analytics
+
+ecommify_analytics> db.product_catalog.countDocuments()
+32951
+ecommify_analytics> db.customer_profiles.countDocuments()
+99441
+ecommify_analytics> db.seller_performance.countDocuments()
+3095
+ecommify_analytics> db.geo_analytics.countDocuments()
+21698
+ecommify_analytics> db.review_documents.countDocuments()
+994
+ecommify_analytics> 
+
+---------------------------- despues de ejecutar cambio en indice 
+
+ecommify_analytics> db.review_documents.countDocuments()
+99224
+ecommify_analytics> db.review_documents.getIndexes()
+[
+  { v: 2, key: { _id: 1 }, name: '_id_' },
+  { v: 2, key: { order_id: 1 }, name: 'order_id_1' },
+  { v: 2, key: { review_score: 1 }, name: 'review_score_1' },
+  {
+    v: 2,
+    key: { review_id: 1, order_id: 1 },
+    name: 'review_id_1_order_id_1',
+    unique: true
+  },
+  { v: 2, key: { review_id: 1 }, name: 'review_id_1' }
+]
+
+------
+
+PS D:\Universidad Sabana\Diseño y Optimización de Bases de Datos\Repo\Ecommify_Olist\Ecommify_Database_Design\docker> docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin --eval "db.getSiblingDB('ecommify_analytics').review_documents.countDocuments()"
+99224
+
+docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin /workspace/mongodb/queries/paso_10_consultas_analiticas_ejemplo.js
+
+
+
+        items_count: 2,
+        sales_month: '2017-04-01',
+        orders_count: 2,
+        avg_review_score: 4.5
+      },
+      {
+        gross_sales: 29.4,
+        items_count: 1,
+        sales_month: '2017-07-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 29.4,
+        items_count: 1,
+        sales_month: '2017-08-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 58.8,
+        items_count: 2,
+        sales_month: '2017-11-01',
+        orders_count: 1,
+        avg_review_score: 4
+      },
+      {
+        gross_sales: 326.2,
+        items_count: 5,
+        sales_month: '2018-03-01',
+        orders_count: 3,
+        avg_review_score: 3.4
+      },
+      {
+        gross_sales: 74.9,
+        items_count: 1,
+        sales_month: '2018-07-01',
+        orders_count: 1,
+        avg_review_score: 5
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.483333333333333
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb8d'),
+    seller_id: '01ed254b9ff8407dfb9d99ba1e17d923',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 678,
+        items_count: 2,
+        sales_month: '2017-08-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 339,
+        items_count: 1,
+        sales_month: '2017-09-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 349,
+        items_count: 1,
+        sales_month: '2017-10-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 99.99,
+        items_count: 1,
+        sales_month: '2017-11-01',
+        orders_count: 1,
+        avg_review_score: 5
+      }
+    ],
+    review_summary: {
+      avg_review_score: 5
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb8e'),
+    seller_id: '01fd077212124329bac32490e8ef80d9',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 198,
+        items_count: 7,
+        sales_month: '2018-04-01',
+        orders_count: 7,
+        avg_review_score: 3.2857142857142856
+      },
+      {
+        gross_sales: 205,
+        items_count: 9,
+        sales_month: '2018-05-01',
+        orders_count: 4,
+        avg_review_score: 4.888888888888889
+      },
+      {
+        gross_sales: 69,
+        items_count: 3,
+        sales_month: '2018-06-01',
+        orders_count: 3,
+        avg_review_score: 4.333333333333333
+      },
+      {
+        gross_sales: 266,
+        items_count: 7,
+        sales_month: '2018-07-01',
+        orders_count: 6,
+        avg_review_score: 3.5714285714285716
+      },
+      {
+        gross_sales: 470,
+        items_count: 13,
+        sales_month: '2018-08-01',
+        orders_count: 11,
+        avg_review_score: 4.846153846153846
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.185103785103785
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb91'),
+    seller_id: '0249d282d911d23cb8b869ab49c99f53',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 43,
+        items_count: 2,
+        sales_month: '2017-09-01',
+        orders_count: 2,
+        avg_review_score: 3.5
+      },
+      {
+        gross_sales: 129.5,
+        items_count: 4,
+        sales_month: '2017-10-01',
+        orders_count: 4,
+        avg_review_score: 4.25
+      },
+      {
+        gross_sales: 198.5,
+        items_count: 4,
+        sales_month: '2017-11-01',
+        orders_count: 4,
+        avg_review_score: 4.5
+      },
+      {
+        gross_sales: 22,
+        items_count: 1,
+        sales_month: '2018-03-01',
+        orders_count: 1,
+        avg_review_score: 5
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.3125
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb92'),
+    seller_id: '024b564ae893ce8e9bfa02c10a401ece',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 467.4,
+        items_count: 6,
+        sales_month: '2016-10-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 239,
+        items_count: 2,
+        sales_month: '2017-02-01',
+        orders_count: 1,
+        avg_review_score: 4
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.5
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb95'),
+    seller_id: '02b72cdeb9cfcc429f1af6f4e3f3b737',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 129.15,
+        items_count: 1,
+        sales_month: '2018-07-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 393.5,
+        items_count: 3,
+        sales_month: '2018-08-01',
+        orders_count: 3,
+        avg_review_score: 4.666666666666667
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.833333333333333
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb96'),
+    seller_id: '02c988090b766852e088c69d7fb3b551',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 229.67,
+        items_count: 2,
+        sales_month: '2017-07-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 169.99,
+        items_count: 1,
+        sales_month: '2017-08-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 47.5,
+        items_count: 5,
+        sales_month: '2017-09-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 119.4,
+        items_count: 1,
+        sales_month: '2017-10-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 37.79,
+        items_count: 1,
+        sales_month: '2017-11-01',
+        orders_count: 1,
+        avg_review_score: 1
+      },
+      {
+        gross_sales: 89.9,
+        items_count: 1,
+        sales_month: '2018-01-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 34.9,
+        items_count: 1,
+        sales_month: '2018-02-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 180.9,
+        items_count: 1,
+        sales_month: '2018-04-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 175.9,
+        items_count: 1,
+        sales_month: '2018-05-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 180.9,
+        items_count: 1,
+        sales_month: '2018-06-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 180.9,
+        items_count: 1,
+        sales_month: '2018-07-01',
+        orders_count: 1,
+        avg_review_score: 4
+      },
+      {
+        gross_sales: 170.9,
+        items_count: 1,
+        sales_month: '2018-08-01',
+        orders_count: 1,
+        avg_review_score: 5
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.583333333333333
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb99'),
+    seller_id: '02ecc2a19303f05e59ce133fd923fff7',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 149.9,
+        items_count: 1,
+        sales_month: '2017-06-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 449.7,
+        items_count: 2,
+        sales_month: '2017-09-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 846.1,
+        items_count: 4,
+        sales_month: '2017-11-01',
+        orders_count: 4,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 914.6,
+        items_count: 4,
+        sales_month: '2017-12-01',
+        orders_count: 2,
+        avg_review_score: 4.5
+      },
+      {
+        gross_sales: 447,
+        items_count: 2,
+        sales_month: '2018-01-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 299.3,
+        items_count: 1,
+        sales_month: '2018-02-01',
+        orders_count: 1,
+        avg_review_score: 4
+      },
+      {
+        gross_sales: 1116.7,
+        items_count: 4,
+        sales_month: '2018-03-01',
+        orders_count: 3,
+        avg_review_score: 3
+      },
+      {
+        gross_sales: 219.22,
+        items_count: 1,
+        sales_month: '2018-04-01',
+        orders_count: 1,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 419.1,
+        items_count: 2,
+        sales_month: '2018-05-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 282.8,
+        items_count: 2,
+        sales_month: '2018-07-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 119.77,
+        items_count: 1,
+        sales_month: '2018-08-01',
+        orders_count: 1,
+        avg_review_score: 5
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.681818181818182
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb9b'),
+    seller_id: '02f623a8eb246f3c5f7c2f96462654e6',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 288,
+        items_count: 2,
+        sales_month: '2018-04-01',
+        orders_count: 2,
+        avg_review_score: 4
+      },
+      {
+        gross_sales: 557,
+        items_count: 4,
+        sales_month: '2018-05-01',
+        orders_count: 4,
+        avg_review_score: 4.5
+      },
+      {
+        gross_sales: 1174,
+        items_count: 9,
+        sales_month: '2018-06-01',
+        orders_count: 9,
+        avg_review_score: 4.777777777777778
+      },
+      {
+        gross_sales: 2179,
+        items_count: 15,
+        sales_month: '2018-07-01',
+        orders_count: 15,
+        avg_review_score: 4.6
+      },
+      {
+        gross_sales: 2180,
+        items_count: 14,
+        sales_month: '2018-08-01',
+        orders_count: 14,
+        avg_review_score: 4.461538461538462
+      }
+    ],
+    review_summary: {
+      avg_review_score: 4.467863247863248
+    }
+  },
+  {
+    _id: ObjectId('6a2cca9655a78d68e6b9eb9c'),
+    seller_id: '0307f7565ff85b299b6e5ef162b1b1a9',
+    location: {
+      state: 'SP'
+    },
+    monthly_metrics: [
+      {
+        gross_sales: 16.9,
+        items_count: 1,
+        sales_month: '2016-10-01',
+        orders_count: 1,
+        avg_review_score: 2
+      },
+      {
+        gross_sales: 2234.9,
+        items_count: 3,
+        sales_month: '2017-02-01',
+        orders_count: 3,
+        avg_review_score: 2.3333333333333335
+      },
+      {
+        gross_sales: 1878,
+        items_count: 2,
+        sales_month: '2017-03-01',
+        orders_count: 2,
+        avg_review_score: 5
+      },
+      {
+        gross_sales: 599,
+        items_count: 1,
+        sales_month: '2017-05-01',
+        orders_count: 1,
+        avg_review_score: 3
+      }
+    ],
+    review_summary: {
+      avg_review_score: 3.0833333333333335
+    }
+  }
+]
+
+=== Dashboard de analitica geografica SP ===
+[
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b37'),
+    geo_key: 'SP|sao paulo|2018-05-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1222,
+      total_payment_value: 183243.63
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b3a'),
+    geo_key: 'SP|sao paulo|2018-08-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1308,
+      total_payment_value: 181133.92
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b35'),
+    geo_key: 'SP|sao paulo|2018-03-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1151,
+      total_payment_value: 174381.26
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b36'),
+    geo_key: 'SP|sao paulo|2018-04-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1166,
+      total_payment_value: 169057.49
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b31'),
+    geo_key: 'SP|sao paulo|2017-11-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1118,
+      total_payment_value: 152219.29
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b39'),
+    geo_key: 'SP|sao paulo|2018-07-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1084,
+      total_payment_value: 150405.76
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b33'),
+    geo_key: 'SP|sao paulo|2018-01-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1098,
+      total_payment_value: 146822.43
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b38'),
+    geo_key: 'SP|sao paulo|2018-06-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1054,
+      total_payment_value: 143210.19
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b34'),
+    geo_key: 'SP|sao paulo|2018-02-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 1037,
+      total_payment_value: 140256.44
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b32'),
+    geo_key: 'SP|sao paulo|2017-12-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 840,
+      total_payment_value: 108423.11
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2f'),
+    geo_key: 'SP|sao paulo|2017-09-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 598,
+      total_payment_value: 92733.39
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b30'),
+    geo_key: 'SP|sao paulo|2017-10-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 624,
+      total_payment_value: 86924.44
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2e'),
+    geo_key: 'SP|sao paulo|2017-08-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 646,
+      total_payment_value: 81421.32
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2d'),
+    geo_key: 'SP|sao paulo|2017-07-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 541,
+      total_payment_value: 73942.38
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2b'),
+    geo_key: 'SP|sao paulo|2017-05-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 521,
+      total_payment_value: 73550.73
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2c'),
+    geo_key: 'SP|sao paulo|2017-06-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 478,
+      total_payment_value: 68391.46
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b29'),
+    geo_key: 'SP|sao paulo|2017-03-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 382,
+      total_payment_value: 66951.64
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b2a'),
+    geo_key: 'SP|sao paulo|2017-04-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 301,
+      total_payment_value: 54102.64
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba4b28'),
+    geo_key: 'SP|sao paulo|2017-02-01',
+    city: 'sao paulo',
+    sales_metrics: {
+      orders_count: 235,
+      total_payment_value: 33102.16
+    },
+    state: 'SP'
+  },
+  {
+    _id: ObjectId('6a2ccbc655a78d68e6ba3d0e'),
+    geo_key: 'SP|campinas|2018-06-01',
+    city: 'campinas',
+    sales_metrics: {
+      orders_count: 111,
+      total_payment_value: 19761.49
+    },
+    state: 'SP'
+  }
+]
+
+=== Documentos de resenas con calificacion baja ===
+[
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4e78'),
+    review_id: '00041b1f51e77a663df6db3f539d694f',
+    order_id: '998b1beee068744ac833dd8b31944623',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'bed_bath_table',
+        product_id: 'c18dfe3165eaa55de9ec8f462cd7556f'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4e84'),
+    review_id: '0009d5c0d8e49da34e2561a67bc730f8',
+    order_id: '755fdf89024021c6324864182b6657b5',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'health_beauty',
+        product_id: 'f40876e0ef3cd5f9132b1f16b04b1346'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4e91'),
+    review_id: '00130cbe1f9d422698c812ed8ded1919',
+    order_id: '04a28263e085d399c97ae49e0b477efa',
+    comment: {
+      title: null,
+      message: 'O cartucho "original HP" 60XL não é reconhecido pela impressora, consequentemente não funcionou. Além de ter chegado com atraso de mais de 15 dias do previsto. Preciso que seja trocado. '
+    },
+    product_context: [
+      {
+        category: 'computers_accessories',
+        product_id: '3f14d740544f37ece8a9e7bc8349797e'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ea4'),
+    review_id: '002268961f544593083579b57bca4f59',
+    order_id: 'c90e15a8d750212aa19ac74b22a39493',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'audio',
+        product_id: '7c4a8bec217df1de0df2b5aaf8175b65'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4eba'),
+    order_id: '7e844a0812d948cb6f3a7ffa97bde8dd',
+    review_id: '00355aabc83e148cd43833a1c0f6f3fe',
+    comment: {
+      title: null,
+      message: 'Produto recebido antes do prazo estabelecido e de acordo com o que foi solicitado.'
+    },
+    product_context: [
+      {
+        category: 'garden_tools',
+        product_id: '43267ceb81c34b7d49decd624671ccfa'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ec1'),
+    order_id: '543ab3128139efe78bf5e8006ae25087',
+    review_id: '00397dc753e8c52a2dd4d73a20b88ae7',
+    comment: {
+      title: null,
+      message: 'não recebi o produto '
+    },
+    product_context: [
+      {
+        category: 'watches_gifts',
+        product_id: 'f819f0c84a64f02d3a5606ca95edd272'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ecb'),
+    order_id: '3adab61474a972a1606b0c78d64b8aee',
+    review_id: '00409368c3ac60ba625775e40321ebc0',
+    comment: {
+      title: null,
+      message: 'Minha compra foi de dois produtos. Tinha apenas um código de rastreio. Chegou apenas um.'
+    },
+    product_context: [
+      {
+        category: 'health_beauty',
+        product_id: 'ac477a098cb23c128ec2915a4f3c4625'
+      },
+      {
+        category: 'health_beauty',
+        product_id: 'bb50f2e236e5eea0100680137654686c'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ecc'),
+    order_id: 'bff76a871750bd5f03d22c007cd7d26d',
+    review_id: '00410141bcde1f1a039230835ea12301',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'stationery',
+        product_id: '2dbc494e29bf48dff938d3b939207504'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4eed'),
+    order_id: 'b07ccdfa28017f65163b05eaa308ff97',
+    review_id: '0054fba4a2c8ddef00af2a4805eec53d',
+    comment: {
+      title: 'Falta de produto ',
+      message: 'Comprei duas cortinas porém só veio uma cortina na nota consta duas gostaria de saber o que vai ser feito porque isso é falta de respeito com o consumidor que compra e quer recebe aguardo retorno'
+    },
+    product_context: [
+      {
+        category: 'bed_bath_table',
+        product_id: '81b6c7c058add831803fcbba6dcc1df2'
+      },
+      {
+        category: 'bed_bath_table',
+        product_id: '9565229244e9341fb8c8069879cf73cd'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ef3'),
+    order_id: 'db0b12b763f716df3f27218724161479',
+    review_id: '005a68c1e45d2ef683bbdc7354c9d3d8',
+    comment: {
+      title: null,
+      message: 'Comprei 2 mini bike e só recebi uma, aguardo retorno.'
+    },
+    product_context: [
+      {
+        category: 'auto',
+        product_id: 'd41d8cd98f00b204e9800998ecf8427e'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ef6'),
+    order_id: '5850f6bb95a78cd0fd9641e0453a740b',
+    review_id: '005eba8f7c09057f6ba364800d5af85e',
+    comment: {
+      title: null,
+      message: 'Loja horrível, não entregou o meu produto até hoje. '
+    },
+    product_context: [
+      {
+        category: 'toys',
+        product_id: 'dc4adbe80b638fa8ed7ce4d2822e05af'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4ef7'),
+    order_id: 'f33b79c24a554aeeed434f1072a17755',
+    review_id: '005ecb46e3dd0a777d3c04d9be75352f',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'watches_gifts',
+        product_id: '0a57f7d2c983bcf8188589a5fea4a8da'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f0c'),
+    order_id: '05095322e4f3619255e9450335966c33',
+    review_id: '006aeabb2a1ff6d8074ecb4b56afd4d4',
+    comment: {
+      title: null,
+      message: 'Quero cancelar este pedido '
+    },
+    product_context: [
+      {
+        category: 'pet_shop',
+        product_id: 'ba80c9f47a84d1e08465f72e22930c83'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f17'),
+    order_id: '93670a5c977fd8e687b42178388d9ce7',
+    review_id: '0073ab5e971a35e8814d542798699fd6',
+    comment: {
+      title: 'O produto com defeito',
+      message: 'Fiz a instalação como dizia no manual, porém o aparelho não funcionou.'
+    },
+    product_context: [
+      {
+        category: 'electronics',
+        product_id: 'fc7138a8f96aee8302e42916bbbbb818'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f1e'),
+    order_id: '028ad19261e3ad3406ca689348755456',
+    review_id: '0077bd924a9e436de9b1bce12ef1da89',
+    comment: {
+      title: null,
+      message: 'mandei por e-mail a informação de que recebi a voltagem errada e NINGUÉM ME DEU RETORNO. Inclusive enviei um numero de celular mas infelizmente a empresa não retornou.'
+    },
+    product_context: [
+      {
+        category: 'health_beauty',
+        product_id: '9453bde60c4ee52155c963641736cfc5'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f2a'),
+    order_id: '2f5112688e80d5d79344cac900d6bd0b',
+    review_id: '007f155f02008dd28da584c210767024',
+    comment: {
+      title: 'Produto divergente',
+      message: 'Recebi um produto divergente, como efeito a troca?'
+    },
+    product_context: [
+      {
+        category: 'telephony',
+        product_id: 'd34c07a2d817ac73f4caf8c574215fed'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f2e'),
+    review_id: '00800678dcf28b0ea0caef2147b6945d',
+    order_id: '000aed2e25dbad2f9ddb70584c5a2ded',
+    comment: {
+      title: 'produto não entregue',
+      message: 'Mudo minha opinião assim que receber o produto.\r\n' +
+        'Consta no site que o produto foi entregue, mas não recebi.'
+    },
+    product_context: [
+      {
+        category: 'perfumery',
+        product_id: '4fa33915031a8cde03dd0d3e8fb27f01'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f35'),
+    review_id: '0084ee902f9a4e006a281b644b78cf29',
+    order_id: 'e2329b38dc9971f2fb0f8247bbb641c2',
+    comment: {
+      title: null,
+      message: 'Ate agora comprei o transformador de voltagem 9000 btu nao recebi liguei pra americana a atendente me falou q ia liga pra transportadora e mr retorno em dois dias ja se passaram o prazo .'
+    },
+    product_context: [
+      {
+        category: 'garden_tools',
+        product_id: 'c4baedd846ed09b85f78a781b522f126'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f4b'),
+    review_id: '00919459c85f9df70228a150eea86077',
+    order_id: '656deadecd45f4e75686a2ae1adaaac5',
+    comment: {
+      title: null,
+      message: null
+    },
+    product_context: [
+      {
+        category: 'toys',
+        product_id: '880be32f4db1d9f6e2bec38fb6ac23ab'
+      }
+    ],
+    review_score: 1
+  },
+  {
+    _id: ObjectId('6a2ccbc755a78d68e6ba4f51'),
+    review_id: '009629d341a4c26a8d3554c146bf2471',
+    order_id: '6a5a302850fcda00dc96d742bcb810f2',
+    comment: {
+      title: null,
+      message: 'Passou do prazo.'
+    },
+    product_context: [
+      {
+        category: 'food',
+        product_id: '89321f94e35fc6d7903d36f74e351d40'
+      }
+    ],
+    review_score: 1
+  }
+]

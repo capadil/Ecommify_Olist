@@ -9,10 +9,11 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 ## Secuencia tecnica
 
 1. Ejecutar primero los pasos 01 a 08 de PostgreSQL.
-2. Preparar o sincronizar documentos derivados desde PostgreSQL.
+2. Refrescar las vistas materializadas en PostgreSQL.
 3. Ejecutar `schema/paso_09_crear_colecciones_validadores.js`.
-4. Cargar o actualizar documentos derivados segun `seed_data/README.md`.
+4. Ejecutar `tools/sync_postgres_to_mongo.py` desde Docker con `docker compose run --rm mongo_sync`.
 5. Usar `queries/paso_10_consultas_analiticas_ejemplo.js` como consultas de control tecnico sobre documentos derivados.
+6. Guardar evidencias de indices, conteos y consultas en `mongodb/evidencias`.
 
 ## Scripts principales
 
@@ -27,4 +28,5 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 - No usar `JSONB` en MongoDB.
 - Colecciones derivadas: `product_catalog`, `customer_profiles`, `seller_performance`, `geo_analytics`, `review_documents`.
 - Conservar IDs Olist en documentos para trazabilidad.
+- `review_documents` usa indice unico compuesto `{ review_id: 1, order_id: 1 }`, porque el dataset puede asociar un mismo `review_id` con mas de una orden.
 - No modelar `*_sk` como requisito de consulta documental, salvo que se necesite auditoria interna de sincronizacion.

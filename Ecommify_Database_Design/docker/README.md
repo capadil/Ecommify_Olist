@@ -118,6 +118,73 @@ show collections
 db.product_catalog.getIndexes()
 ```
 
+Ejecutar consultas analiticas de MongoDB:
+
+```powershell
+docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin /workspace/mongodb/queries/paso_10_consultas_analiticas_ejemplo.js
+```
+
+Si el contenedor responde `ENOENT` para `/workspace/mongodb/queries/...`, recrea solo el servicio MongoDB para aplicar el montaje de la carpeta `mongodb/queries` sin borrar datos:
+
+```powershell
+docker compose up -d --force-recreate mongo
+```
+
 ## Nota importante sobre datos
 
 Este primer ambiente crea estructuras, extensiones, validadores e indices. La carga del dataset Olist y la sincronizacion PostgreSQL -> MongoDB son pasos posteriores de la actividad.
+
+## Sincronizar PostgreSQL hacia MongoDB
+
+Despues de cargar PostgreSQL y refrescar vistas materializadas, MongoDB sigue vacio porque solo tiene colecciones, validadores e indices. Para poblar documentos derivados se ejecuta el servicio temporal `mongo_sync`.
+
+Desde la carpeta `docker/`:
+
+```powershell
+docker compose run --rm mongo_sync
+```
+
+Que hace este comando:
+
+1. Crea un contenedor temporal con Python.
+2. Instala las dependencias de `tools/requirements-sync.txt`.
+3. Ejecuta `tools/sync_postgres_to_mongo.py`.
+4. Lee datos desde PostgreSQL.
+5. Escribe documentos derivados en MongoDB usando `upsert`.
+6. El contenedor temporal se elimina al finalizar por `--rm`.
+
+Colecciones pobladas:
+
+| Coleccion | Fuente PostgreSQL |
+|---|---|
+| `product_catalog` | `products`, `category_translation`, `order_items`, `order_reviews` |
+| `customer_profiles` | `mv_customer_segments` |
+| `seller_performance` | `mv_seller_performance_monthly` |
+| `geo_analytics` | `mv_geo_sales_summary` |
+| `review_documents` | `order_reviews`, `orders`, `customers`, `order_items`, `products` |
+
+Validacion posterior en MongoDB:
+
+```powershell
+docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin
+```
+
+```javascript
+use ecommify_analytics
+db.product_catalog.countDocuments()
+db.customer_profiles.countDocuments()
+db.seller_performance.countDocuments()
+db.geo_analytics.countDocuments()
+db.review_documents.countDocuments()
+```
+
+Si `review_documents` queda con un conteo muy inferior al de reseñas cargadas en PostgreSQL, actualiza los validadores e indices de MongoDB antes de repetir la sincronizacion. Esto aplica cuando el ambiente se habia inicializado con el indice historico unico por `review_id`.
+
+```powershell
+docker compose exec mongo mongosh -u ecommify_admin -p ecommify_password --authenticationDatabase admin /workspace/mongodb/schema/paso_09_crear_colecciones_validadores.js
+docker compose run --rm mongo_sync
+```
+
+## Solucion de problemas
+
+Si `mongo_sync` falla con `InvalidDocument: cannot encode object: datetime.date(...)`, significa que una fecha de PostgreSQL llego a MongoDB como `date` sin hora. El script `tools/sync_postgres_to_mongo.py` convierte esos valores a `datetime` UTC antes de guardarlos, porque BSON requiere fechas con componente de hora.

@@ -12,6 +12,9 @@ Ecommify_Database_Design/
 |   |-- .gitignore
 |   |-- postgres/init/00_run_schema.sh
 |   `-- mongo/init/00_init_mongo.js
+|-- tools/
+|   |-- requirements-sync.txt
+|   `-- sync_postgres_to_mongo.py
 |-- docs/
 |   |-- Actividad_U3_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
@@ -78,6 +81,13 @@ docker compose logs mongo
 
 La guia detallada esta en `docker/README.md`.
 
+Sincronizacion documental despues de cargar PostgreSQL:
+
+```powershell
+cd docker
+docker compose run --rm mongo_sync
+```
+
 ### Secuencia tecnica de artefactos
 
 | Orden | Carpeta / archivo | Proposito |
@@ -92,6 +102,7 @@ La guia detallada esta en `docker/README.md`.
 | 08 | `postgresql/queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
 | 09 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
 | 10 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
+| 11 | `tools/sync_postgres_to_mongo.py` | Sincronizar documentos derivados hacia MongoDB desde PostgreSQL. |
 
 ### Artefactos tecnicos
 

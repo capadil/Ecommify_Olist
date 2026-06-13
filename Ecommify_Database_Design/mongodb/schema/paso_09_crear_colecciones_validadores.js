@@ -129,7 +129,14 @@ createOrUpdateCollection("review_documents", {
   }
 });
 
-targetDb.review_documents.createIndex({ review_id: 1 }, { unique: true });
+// Olist puede relacionar un review_id con mas de una orden.
+// Por eso la unicidad documental se controla con la pareja review_id + order_id.
+// Si existe el indice historico unico por review_id, se elimina antes de crear el indice compuesto.
+if (targetDb.review_documents.getIndexes().some(index => index.name === "review_id_1")) {
+  targetDb.review_documents.dropIndex("review_id_1");
+}
+targetDb.review_documents.createIndex({ review_id: 1, order_id: 1 }, { unique: true });
+targetDb.review_documents.createIndex({ review_id: 1 });
 targetDb.review_documents.createIndex({ order_id: 1 });
 targetDb.review_documents.createIndex({ review_score: 1 });
 

@@ -47,6 +47,12 @@ services:
       # Monta queries SQL como solo lectura para uso posterior.
       - ../postgresql/queries:/workspace/postgresql/queries:ro
 
+      # Monta scripts de carga del dataset Olist como solo lectura.
+      - ../postgresql/seed_data:/workspace/postgresql/seed_data:ro
+
+      # Monta los CSV reales de Olist desde la carpeta raw del repositorio padre.
+      - ../../raw:/workspace/raw:ro
+
       # Scripts en esta carpeta se ejecutan automaticamente SOLO en la primera inicializacion del volumen.
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
 
@@ -102,6 +108,9 @@ services:
       # Monta scripts de schema/validadores de MongoDB como solo lectura.
       - ../mongodb/schema:/workspace/mongodb/schema:ro
 
+      # Monta consultas analiticas de MongoDB como solo lectura para poder ejecutarlas con mongosh.
+      - ../mongodb/queries:/workspace/mongodb/queries:ro
+
       # Scripts en esta carpeta se ejecutan automaticamente en la primera inicializacion del volumen.
       - ./mongo/init:/docker-entrypoint-initdb.d:ro
 
@@ -120,6 +129,53 @@ services:
       # Numero de reintentos antes de marcar Mongo como unhealthy.
       retries: 8
 
+  # Servicio de ejecucion manual: sincroniza documentos derivados desde PostgreSQL hacia MongoDB.
+  # No queda corriendo como base de datos; se ejecuta bajo demanda con:
+  # docker compose run --rm mongo_sync
+  mongo_sync:
+    # Imagen Python usada solo para ejecutar el script de sincronizacion.
+    image: python:3.12-slim
+
+    # Nombre opcional del contenedor temporal de sincronizacion.
+    container_name: ecommify_mongo_sync
+
+    # Este perfil evita que el servicio arranque con docker compose up -d.
+    # Solo se ejecuta cuando se invoca explicitamente.
+    profiles: ["tools"]
+
+    # El script necesita que PostgreSQL y MongoDB ya esten saludables.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+    # Variables de conexion que consume tools/sync_postgres_to_mongo.py.
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-ecommify_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ecommify_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecommify_password}
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-ecommify_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-ecommify_password}
+      MONGO_DB: ${MONGO_INITDB_DATABASE:-ecommify_analytics}
+      SYNC_BATCH_SIZE: ${SYNC_BATCH_SIZE:-1000}
+
+    # /workspace contiene el repositorio en modo solo lectura para ejecutar tools/.
+    volumes:
+      - ..:/workspace:ro
+
+    # Directorio de trabajo dentro del contenedor temporal.
+    working_dir: /workspace
+
+    # Instala dependencias y ejecuta la sincronizacion.
+    # En una version productiva se podria crear una imagen propia para evitar reinstalar cada vez.
+    command: >
+      sh -c "pip install --no-cache-dir -r tools/requirements-sync.txt
+      && python tools/sync_postgres_to_mongo.py"
 # Volumenes administrados por Docker.
 # Guardan datos aunque apagues los contenedores.
 volumes:
