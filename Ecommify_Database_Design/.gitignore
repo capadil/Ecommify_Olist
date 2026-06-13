@@ -1,0 +1,13 @@
+# Local environment and secrets
+.env
+
+# Local data and generated evidence
+/data/raw/
+/data/processed/
+/evidencias/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

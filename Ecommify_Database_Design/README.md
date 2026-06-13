@@ -5,6 +5,13 @@
 ```text
 Ecommify_Database_Design/
 |-- README.md
+|-- docker/
+|   |-- README.md
+|   |-- docker-compose.yml
+|   |-- .env.example
+|   |-- .gitignore
+|   |-- postgres/init/00_run_schema.sh
+|   `-- mongo/init/00_init_mongo.js
 |-- docs/
 |   |-- Actividad_U3_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
@@ -12,7 +19,7 @@ Ecommify_Database_Design/
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
 |   |-- pdf-style.css
-|   `-- Presentación ejecutiva.pptx
+|   `-- Presentacion ejecutiva.pptx
 |-- postgresql/
 |   |-- README.md
 |   |-- schema/
@@ -42,6 +49,34 @@ Ecommify_Database_Design/
 `-- notebooks/
     `-- Data_Exploration_Analysis.ipynb
 ```
+
+
+### Setup local con Docker
+
+El repositorio incluye un ambiente Docker reproducible para ejecutar la implementacion local antes de llevarla a Supabase y MongoDB Atlas.
+
+| Servicio | Imagen | Uso |
+|---|---|---|
+| PostgreSQL | `postgis/postgis:16-3.4` | Ejecuta el modelo relacional con `pg_trgm`, PostGIS, tablas, indices, triggers y vistas materializadas. |
+| MongoDB | `mongo:7` | Crea colecciones analiticas derivadas, validadores JSON Schema e indices iniciales. |
+
+Comando base desde la carpeta `docker/`:
+
+```powershell
+cd docker
+copy .env.example .env
+docker compose up -d
+```
+
+Verificacion rapida:
+
+```powershell
+docker compose ps
+docker compose logs postgres
+docker compose logs mongo
+```
+
+La guia detallada esta en `docker/README.md`.
 
 ### Secuencia tecnica de artefactos
 

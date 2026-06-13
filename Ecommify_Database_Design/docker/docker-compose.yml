@@ -1,0 +1,130 @@
+# Nombre logico del proyecto Docker Compose.
+# Docker lo usa como prefijo para red, volumenes y recursos creados.
+name: ecommify-database-design
+
+# services define los contenedores que componen el ambiente local.
+services:
+  
+  postgres:
+    # Imagen elegida porque incluye PostgreSQL 16 + PostGIS.
+    image: postgis/postgis:16-3.4
+
+    # Nombre fijo del contenedor para identificarlo facil en docker ps/logs.
+    container_name: ecommify_postgres
+
+    # Reinicia el contenedor si Docker Desktop se reinicia o si el contenedor cae.
+    # No lo reinicia si lo detienes manualmente con docker compose down/stop.
+    restart: unless-stopped
+
+    # Variables que lee la imagen oficial para crear la base inicial.
+    environment:
+      # Nombre de la base de datos que se creara al inicializar el volumen por primera vez.
+      POSTGRES_DB: ${POSTGRES_DB:-ecommify_db}
+
+      # Usuario administrador local de PostgreSQL para esta actividad.
+      POSTGRES_USER: ${POSTGRES_USER:-ecommify_user}
+
+      # Password local. En practica se puede cambiar en docker/.env.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecommify_password}
+
+      # Zona horaria usada por el contenedor.
+      TZ: ${TZ:-America/Bogota}
+
+    # ports publica puertos del contenedor hacia Windows.
+    ports:
+      # Formato host:contenedor. Windows usa POSTGRES_PORT; el contenedor siempre escucha en 5432.
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    # volumes conecta datos persistentes y carpetas del repo dentro del contenedor.
+    volumes:
+      # Volumen persistente donde PostgreSQL guarda datos fisicos.
+      # Si haces docker compose down, se conserva. Si haces down -v, se borra.
+      - ecommify_pgdata:/var/lib/postgresql/data
+
+      # Monta scripts SQL de schema como solo lectura dentro del contenedor.
+      - ../postgresql/schema:/workspace/postgresql/schema:ro
+
+      # Monta queries SQL como solo lectura para uso posterior.
+      - ../postgresql/queries:/workspace/postgresql/queries:ro
+
+      # Scripts en esta carpeta se ejecutan automaticamente SOLO en la primera inicializacion del volumen.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+
+    # healthcheck le dice a Docker como verificar si PostgreSQL ya acepta conexiones.
+    healthcheck:
+      # pg_isready prueba que la base este lista para recibir conexiones.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecommify_user} -d ${POSTGRES_DB:-ecommify_db}"]
+
+      # Docker ejecuta la prueba cada 10 segundos.
+      interval: 10s
+
+      # Si la prueba tarda mas de 5 segundos, se considera fallida.
+      timeout: 5s
+
+      # Reintenta 8 veces antes de marcar el contenedor como unhealthy.
+      retries: 8
+
+  # Servicio MongoDB: capa documental derivada para analitica y lectura.
+  mongo:
+    # Imagen oficial de MongoDB 7.
+    image: mongo:7
+
+    # Nombre fijo del contenedor para identificarlo facil.
+    container_name: ecommify_mongo
+
+    # Politica de reinicio igual que PostgreSQL.
+    restart: unless-stopped
+
+    # Variables que usa MongoDB para crear usuario root y base inicial.
+    environment:
+      # Usuario root local de MongoDB.
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-ecommify_admin}
+
+      # Password root local. Puede cambiarse en docker/.env.
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-ecommify_password}
+
+      # Base inicial de trabajo para las colecciones derivadas.
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-ecommify_analytics}
+
+      # Zona horaria usada por el contenedor.
+      TZ: ${TZ:-America/Bogota}
+
+    # Publica MongoDB hacia Windows.
+    ports:
+      # Formato host:contenedor. Windows usa MONGO_PORT; MongoDB escucha en 27017.
+      - "${MONGO_PORT:-27017}:27017"
+
+    # Volumenes y scripts montados para MongoDB.
+    volumes:
+      # Volumen persistente donde MongoDB guarda sus datos.
+      - ecommify_mongodata:/data/db
+
+      # Monta scripts de schema/validadores de MongoDB como solo lectura.
+      - ../mongodb/schema:/workspace/mongodb/schema:ro
+
+      # Scripts en esta carpeta se ejecutan automaticamente en la primera inicializacion del volumen.
+      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+
+    # Healthcheck para verificar que MongoDB responde.
+    healthcheck:
+      # mongosh ejecuta ping autenticado contra admin.
+      # Se usan credenciales locales por defecto, alineadas con .env.example.
+      test: ["CMD", "mongosh", "--quiet", "-u", "ecommify_admin", "-p", "ecommify_password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+
+      # Docker ejecuta la prueba cada 10 segundos.
+      interval: 10s
+
+      # Tiempo maximo permitido para la prueba.
+      timeout: 5s
+
+      # Numero de reintentos antes de marcar Mongo como unhealthy.
+      retries: 8
+
+# Volumenes administrados por Docker.
+# Guardan datos aunque apagues los contenedores.
+volumes:
+  # Datos fisicos de PostgreSQL.
+  ecommify_pgdata:
+
+  # Datos fisicos de MongoDB.
+  ecommify_mongodata:
