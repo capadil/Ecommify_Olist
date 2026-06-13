@@ -11,6 +11,65 @@ La fuente de verdad del diseno sigue siendo el `README.md` principal del reposit
 | `postgres` | `postgis/postgis:16-3.4` | PostgreSQL 16 con PostGIS disponible para el modelo OLTP y geografia. |
 | `mongo` | `mongo:7` | MongoDB local para colecciones analiticas derivadas. |
 
+## Arquitectura de comunicacion
+
+El archivo `arquitectura_docker.md` contiene tres diagramas Mermaid del ambiente local:
+
+1. Creacion del ambiente Docker.
+2. Migracion y sincronizacion de datos.
+3. Comunicacion final limpia entre bases de datos activas y volumenes persistentes.
+
+```mermaid
+flowchart LR
+    DEV[Usuario PowerShell]
+
+    subgraph HOST[Repositorio local Windows]
+        ENV[docker .env]
+        RAW[raw CSV Olist]
+        PGFILES[Scripts PostgreSQL]
+        MONGOFILES[Scripts MongoDB]
+        TOOLFILES[Script Python sync]
+    end
+
+    subgraph COMPOSE[Docker Compose ecommify-database-design]
+        POSTGRES[postgres postgis PostgreSQL]
+        MONGO[mongo MongoDB]
+        SYNC[mongo_sync Python temporal]
+        PGDATA[(ecommify_pgdata)]
+        MONGODATA[(ecommify_mongodata)]
+    end
+
+    DEV -->|"docker compose up -d"| POSTGRES
+    DEV -->|"docker compose up -d"| MONGO
+    DEV -->|"docker compose run --rm mongo_sync"| SYNC
+
+    ENV -. variables .-> POSTGRES
+    ENV -. variables .-> MONGO
+    ENV -. variables .-> SYNC
+
+    RAW -->|/workspace/raw solo lectura| POSTGRES
+    PGFILES -->|/workspace/postgresql solo lectura| POSTGRES
+    MONGOFILES -->|/workspace/mongodb solo lectura| MONGO
+    TOOLFILES -->|/workspace/tools solo lectura| SYNC
+
+    POSTGRES -->|persistencia| PGDATA
+    MONGO -->|persistencia| MONGODATA
+
+    SYNC -->|lee postgres 5432| POSTGRES
+    SYNC -->|escribe mongo 27017| MONGO
+
+    POSTGRES -. puerto 5432 .-> DEV
+    MONGO -. puerto 27017 .-> DEV
+```
+
+Lectura del diagrama:
+
+1. `postgres` y `mongo` quedan en la misma red interna de Docker Compose.
+2. `mongo_sync` es temporal: se crea con `docker compose run --rm mongo_sync`, lee PostgreSQL y escribe MongoDB.
+3. Los volumenes `ecommify_pgdata` y `ecommify_mongodata` conservan los datos aunque se ejecute `docker compose down`.
+4. Los montajes `:ro` son de solo lectura; permiten que los contenedores lean scripts y CSV sin modificar el repositorio.
+5. Los puertos `5432` y `27017` permiten entrar desde PowerShell o herramientas externas, pero la comunicacion entre contenedores usa los nombres de servicio `postgres` y `mongo`.
+
 ## Que ocurre al iniciar por primera vez
 
 Docker crea volumenes persistentes y ejecuta scripts de inicializacion solo cuando el volumen esta vacio.

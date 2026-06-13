@@ -69,11 +69,3 @@ Ecommify_Database_Design/
 2. Revisar el diseño y las consultas en: [Ecommify_Database_Design/](Ecommify_Database_Design).
 3. Para cargar los CSV en PostgreSQL o MongoDB, use los scripts y esquemas dentro de las carpetas `Ecommify_Database_Design/mongodb` o `notebooks/postgresql` según la guía del proyecto.
 
-## Notas
-
-- Este README resume la estructura del repositorio. Si quieres, puedo:
-	- Añadir instrucciones de instalación y comandos concretos para cargar datos en PostgreSQL/MongoDB.
-	- Crear README específicos para subcarpetas (por ejemplo `Ecommify_Database_Design/README.md`).
-
----
-Actualizado automáticamente para reflejar la estructura del proyecto.

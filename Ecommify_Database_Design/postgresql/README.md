@@ -18,10 +18,13 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 ## Secuencia tecnica
 
 1. Ejecutar scripts de `schema/` del paso 01 al paso 05.
-2. Cargar datos en el orden indicado en `seed_data/README.md`.
-3. Ejecutar `queries/paso_07_refrescar_vistas_materializadas.sql`.
-4. Usar `queries/paso_08_consultas_analiticas_ejemplo.sql` como consultas de control tecnico y analitica.
-5. Conservar `schema/paso_06_borrador_particionamiento_orders.sql` como alternativa tecnica de particionamiento.
+2. Ejecutar `seed_data/paso_06_crear_staging.sql`.
+3. Ejecutar `seed_data/paso_07_cargar_csv_staging.sql`.
+4. Ejecutar `seed_data/paso_08_insertar_modelo_final.sql`.
+5. Ejecutar `seed_data/paso_09_validar_carga.sql`.
+6. Ejecutar `queries/paso_07_refrescar_vistas_materializadas.sql`.
+7. Usar `queries/paso_08_consultas_analiticas_ejemplo.sql` como consultas de control tecnico y analitica.
+8. Conservar `schema/paso_06_borrador_particionamiento_orders.sql` como alternativa tecnica de particionamiento.
 
 ## Scripts principales
 
@@ -36,6 +39,26 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 | 07 | `queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar/refrescar vistas materializadas despues de cargar datos. |
 | 08 | `queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
 
+## Scripts de carga CSV
+
+| Paso | Archivo | Proposito |
+|---|---|---|
+| 06 | `seed_data/paso_06_crear_staging.sql` | Crear tablas staging alineadas con los CSV Olist. |
+| 07 | `seed_data/paso_07_cargar_csv_staging.sql` | Cargar archivos CSV desde `/workspace/raw` usando `COPY`. |
+| 08 | `seed_data/paso_08_insertar_modelo_final.sql` | Insertar datos limpios en tablas finales resolviendo llaves tecnicas. |
+| 09 | `seed_data/paso_09_validar_carga.sql` | Validar conteos finales y columna espacial `geog`. |
+
+La carga final mantiene este orden logico: categorias, clientes, sellers, productos, ordenes, items, pagos, resenas y geolocalizacion.
+
+Las tablas hijas resuelven sus FK internas con `INSERT ... SELECT` desde staging. Por ejemplo, `orders.customer_sk` se obtiene desde `customers.customer_id`, y `order_items.product_sk` desde `products.product_id`.
+
+## Evidencias
+
+| Archivo | Proposito |
+|---|---|
+| `evidencias.md` | Documento academico con interpretacion de pruebas PostgreSQL, PostGIS, `pg_trgm`, vistas materializadas e indices OLTP. |
+| `evidencias` | Salida cruda de consola usada como respaldo de trazabilidad. |
+
 ## Decisiones aplicadas
 
 - Los IDs de Olist se mantienen como `TEXT UNIQUE`.
@@ -48,3 +71,4 @@ Esta decision evita usar IDs externos largos como PK fisicas, mejora el tamano d
 - `TEXT[]` se usa en `products.photo_urls`.
 - Pagos permanecen en `order_payments`; la regla natural `(order_sk, payment_sequential)` se conserva como `UNIQUE`.
 - MongoDB consume documentos derivados, no reemplaza estas tablas.
+- `geolocation_clean.geog` se genera automaticamente desde longitud y latitud; no se carga manualmente desde CSV.

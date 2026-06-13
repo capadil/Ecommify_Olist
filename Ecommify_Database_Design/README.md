@@ -2,6 +2,8 @@
 
 ## Estructura actual del proyecto
 
+Este README es la fuente de verdad del repositorio: aqui se concentran las decisiones tecnicas, la secuencia global y los criterios de entrega. Los README internos solo existen cuando tienen una responsabilidad operativa o tecnica distinta y no deben replicar esta informacion.
+
 ```text
 Ecommify_Database_Design/
 |-- README.md
@@ -26,7 +28,6 @@ Ecommify_Database_Design/
 |-- postgresql/
 |   |-- README.md
 |   |-- schema/
-|   |   |-- README.md
 |   |   |-- paso_01_crear_esquema.sql
 |   |   |-- paso_02_crear_tablas_base.sql
 |   |   |-- paso_03_crear_indices.sql
@@ -34,24 +35,37 @@ Ecommify_Database_Design/
 |   |   |-- paso_05_crear_vistas_materializadas.sql
 |   |   `-- paso_06_borrador_particionamiento_orders.sql
 |   |-- queries/
-|   |   |-- README.md
 |   |   |-- paso_07_refrescar_vistas_materializadas.sql
 |   |   `-- paso_08_consultas_analiticas_ejemplo.sql
+|   |-- evidencias
+|   |-- evidencias.md
 |   `-- seed_data/
-|       `-- README.md
+|       |-- paso_06_crear_staging.sql
+|       |-- paso_07_cargar_csv_staging.sql
+|       |-- paso_08_insertar_modelo_final.sql
+|       `-- paso_09_validar_carga.sql
 |-- mongodb/
 |   |-- README.md
 |   |-- schema/
-|   |   |-- README.md
 |   |   `-- paso_09_crear_colecciones_validadores.js
 |   |-- queries/
-|   |   |-- README.md
 |   |   `-- paso_10_consultas_analiticas_ejemplo.js
-|   `-- seed_data/
-|       `-- README.md
+|   |-- evidencias
+|   `-- evidencias.md
 `-- notebooks/
     `-- Data_Exploration_Analysis.ipynb
 ```
+
+### Responsabilidad de los README
+
+| Archivo | Responsabilidad |
+|---|---|
+| `README.md` | Fuente de verdad: decisiones, arquitectura, secuencia global y criterios de entrega. |
+| `docker/README.md` | Guia operativa para levantar, validar y solucionar problemas del ambiente Docker local. |
+| `postgresql/README.md` | Contrato tecnico del modelo relacional, scripts PostgreSQL y reglas de carga. |
+| `mongodb/README.md` | Contrato tecnico de la capa documental derivada, sincronizacion e indices MongoDB. |
+
+No se mantienen README en subcarpetas `schema/`, `queries/` o `seed_data` si solo repiten nombres de archivos. El orden de ejecucion se controla desde este README y desde el README del motor correspondiente.
 
 
 ### Setup local con Docker
@@ -98,11 +112,15 @@ docker compose run --rm mongo_sync
 | 04 | `postgresql/schema/paso_04_crear_triggers_updated_at.sql` | Crear triggers de mantenimiento de `updated_at`. |
 | 05 | `postgresql/schema/paso_05_crear_vistas_materializadas.sql` | Crear vistas materializadas para analitica. |
 | 06 | `postgresql/schema/paso_06_borrador_particionamiento_orders.sql` | Alternativa tecnica de particionamiento de `orders` para evaluar el diseno fisico hot/cold. |
-| 07 | `postgresql/queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar o refrescar vistas materializadas despues de cargar datos. |
-| 08 | `postgresql/queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
-| 09 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
-| 10 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
-| 11 | `tools/sync_postgres_to_mongo.py` | Sincronizar documentos derivados hacia MongoDB desde PostgreSQL. |
+| 07 | `postgresql/seed_data/paso_06_crear_staging.sql` | Crear tablas staging alineadas con los CSV Olist. |
+| 08 | `postgresql/seed_data/paso_07_cargar_csv_staging.sql` | Cargar los CSV reales desde `/workspace/raw`. |
+| 09 | `postgresql/seed_data/paso_08_insertar_modelo_final.sql` | Insertar datos en tablas finales resolviendo llaves tecnicas. |
+| 10 | `postgresql/seed_data/paso_09_validar_carga.sql` | Validar conteos finales y geografia PostGIS. |
+| 11 | `postgresql/queries/paso_07_refrescar_vistas_materializadas.sql` | Poblar o refrescar vistas materializadas despues de cargar datos. |
+| 12 | `postgresql/queries/paso_08_consultas_analiticas_ejemplo.sql` | Consultas de control tecnico y analitica. |
+| 13 | `mongodb/schema/paso_09_crear_colecciones_validadores.js` | Crear colecciones, validadores e indices de MongoDB. |
+| 14 | `tools/sync_postgres_to_mongo.py` | Sincronizar documentos derivados hacia MongoDB desde PostgreSQL. |
+| 15 | `mongodb/queries/paso_10_consultas_analiticas_ejemplo.js` | Consultas analiticas sobre documentos derivados. |
 
 ### Artefactos tecnicos
 
@@ -113,7 +131,9 @@ docker compose run --rm mongo_sync
 - `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
 - `docs/pdf-style.css`: estilos de exportacion PDF para tablas y bloques largos.
 - `docs/Presentación ejecutiva.pptx`: presentacion ejecutiva del proyecto.
-- `postgresql/seed_data/` y `mongodb/seed_data/`: criterios tecnicos de carga y sincronizacion de datos.
+- `postgresql/seed_data/`: scripts de staging, carga CSV, insercion al modelo final y validacion.
+- `postgresql/evidencias.md`: lectura academica de las evidencias PostgreSQL; `postgresql/evidencias` conserva la salida cruda.
+- `mongodb/evidencias.md`: lectura academica de las evidencias MongoDB; `mongodb/evidencias` conserva la salida cruda.
 ## Indice
 
 - [Estructura actual del proyecto](#estructura-actual-del-proyecto)
