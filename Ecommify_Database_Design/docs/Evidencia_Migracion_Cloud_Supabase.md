@@ -1,6 +1,6 @@
 ﻿# Evidencia de migracion cloud a Supabase
 
-Este documento consolida la evidencia de migracion de PostgreSQL/PostGIS desde Docker local hacia Supabase. Docker se mantiene como fuente reproducible del proyecto; Supabase se valida como despliegue cloud relacional y espacial.
+Este documento consolida la evidencia de implementacion de PostgreSQL/PostGIS en Supabase como parte de la arquitectura cloud objetivo de Ecommify. Docker se uso como ambiente reproducible para preparar, normalizar, validar y exportar el modelo; Supabase se valida como destino cloud relacional y espacial.
 
 ## 1. Alcance de la migracion
 
@@ -13,9 +13,9 @@ Este documento consolida la evidencia de migracion de PostgreSQL/PostGIS desde D
 | Motor Supabase | PostgreSQL 17.6 |
 | Modelo migrado | Solo tablas finales del schema `ecommify` |
 | Excluido | Tablas `stg_*` y `benchmark_results` |
-| MongoDB | No se migra a Supabase; queda pendiente para MongoDB Atlas |
+| MongoDB | No se migra a Supabase; la capa documental cloud corresponde a MongoDB Atlas |
 
-**Comentario importante:** se excluyeron staging y benchmarks locales para cuidar el limite del plan gratuito y mantener Supabase enfocado en el modelo final de datos. Docker conserva el flujo completo de reconstruccion desde CSV.
+**Comentario importante:** se excluyeron staging y benchmarks locales para cuidar el limite del plan gratuito y mantener Supabase enfocado en el modelo final de datos. Docker conserva el flujo completo de reconstruccion desde CSV y permite repetir la normalizacion sin contaminar el destino cloud.
 
 ## 2. Diagnostico local antes de migrar
 
@@ -398,7 +398,7 @@ Resultado relevante:
 
 ## 10. Conclusiones de la migracion
 
-La migracion PostgreSQL/PostGIS hacia Supabase queda validada con datos reales y sin modificar la arquitectura local Docker.
+La implementacion PostgreSQL/PostGIS en Supabase queda validada con datos reales. Docker permanece como ambiente de trabajo reproducible, pero la capa relacional/espacial objetivo queda alojada en Supabase.
 
 | Criterio | Resultado |
 |---|---|
@@ -411,11 +411,11 @@ La migracion PostgreSQL/PostGIS hacia Supabase queda validada con datos reales y
 | Indices criticos presentes | Cumplido |
 | Vistas materializadas refrescadas | Cumplido |
 | Tamano final dentro del margen free tier | 210 MB |
-| MongoDB Atlas | Pendiente |
+| MongoDB Atlas | Validado en documento independiente |
 
-La arquitectura cloud queda parcialmente implementada:
+La arquitectura cloud queda implementada en primera version:
 
 ```text
-PostgreSQL/PostGIS Docker local -> Supabase PostgreSQL/PostGIS: validado
-MongoDB Docker local            -> MongoDB Atlas: pendiente
+Supabase PostgreSQL/PostGIS -> capa relacional y espacial: validado
+MongoDB Atlas               -> capa documental derivada: validado
 ```

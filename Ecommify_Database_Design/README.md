@@ -24,6 +24,7 @@ Ecommify_Database_Design/
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
 |   |-- Documento_Tecnico_Implementacion_U5_Actividad_2.md
 |   |-- Evidencia_Migracion_Cloud_Supabase.md
+|   |-- Evidencia_Migracion_Cloud_MongoDB_Atlas.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
@@ -81,7 +82,7 @@ No se mantienen README en subcarpetas `schema/`, `queries/` o `seed_data` si sol
 
 ### Setup local con Docker
 
-El repositorio incluye un ambiente Docker reproducible para ejecutar la implementacion local antes de llevarla a Supabase y MongoDB Atlas.
+El repositorio incluye un ambiente Docker reproducible para preparar y validar la implementacion antes de llevarla a la arquitectura cloud objetivo. Docker no representa el destino final del despliegue; se usa como ambiente portable de trabajo remoto, normalizacion, carga controlada, pruebas de scripts y generacion de artefactos de migracion.
 
 | Servicio | Imagen | Uso |
 |---|---|---|
@@ -115,14 +116,27 @@ cd docker
 docker compose run --rm mongo_sync
 ```
 
-### Despliegue cloud controlado
+### Arquitectura cloud objetivo
 
-El despliegue cloud se agrega como una extension de la implementacion local, no como reemplazo de Docker. La arquitectura validada queda asi:
+La arquitectura objetivo de Ecommify para la Unidad 5 - Actividad 2 es cloud:
+
+- Supabase aloja PostgreSQL/PostGIS como capa relacional, transaccional y espacial.
+- MongoDB Atlas aloja la capa documental derivada para lectura y analitica.
+
+Docker se conserva como ambiente reproducible de construccion y verificacion, no como reemplazo de la arquitectura cloud. La relacion validada queda asi:
 
 ```text
-Docker PostgreSQL/PostGIS local -> Supabase PostgreSQL/PostGIS
-Docker MongoDB local              -> MongoDB Atlas (pendiente)
+Docker PostgreSQL/PostGIS local -> prepara y valida -> Supabase PostgreSQL/PostGIS
+Docker MongoDB local            -> prepara y valida -> MongoDB Atlas
 ```
+
+La sincronizacion entre ambientes cloud no es directa entre Supabase y Atlas. El flujo correcto conserva PostgreSQL como fuente de verdad y usa el job externo del repositorio:
+
+```text
+Supabase PostgreSQL/PostGIS -> tools/sync_postgres_to_mongo.py -> MongoDB Atlas
+```
+
+El mismo script mantiene compatibilidad con Docker local. Para cloud acepta `SUPABASE_DATABASE_URL` o `POSTGRES_DSN` como origen PostgreSQL, y `ATLAS_URI` o `MONGO_URI` como destino MongoDB. Si `ATLAS_URI` no contiene credenciales embebidas, el script puede usar `ATLAS_USER` y `ATLAS_USER_PASS`.
 
 Estado validado en Supabase:
 
@@ -135,7 +149,8 @@ Estado validado en Supabase:
 | Tablas finales migradas | 9 tablas del esquema `ecommify` |
 | Datos reales cargados | Conteos equivalentes a Docker local |
 | Tamano final Supabase | 210 MB |
-| Evidencia | `docs/Evidencia_Migracion_Cloud_Supabase.md` |
+| Evidencia Supabase | docs/Evidencia_Migracion_Cloud_Supabase.md |
+| Evidencia MongoDB Atlas | docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md |
 | Artefactos SQL cloud | `postgresql/cloud/` |
 
 No se migraron tablas staging ni `benchmark_results` a Supabase para cuidar el limite del plan gratuito y mantener el despliegue cloud enfocado en el modelo final.
@@ -190,7 +205,7 @@ La Unidad 5 - Actividad 2 queda consolidada como una implementacion local reprod
 | Benchmarks comparativos | `benchmark_results` en PostgreSQL y MongoDB | Ejecutado y documentado |
 | Decisiones tecnicas validadas | PostGIS, `pg_trgm`, vistas materializadas, indices, validadores MongoDB, indice compuesto en `review_documents` | Validado con dataset real |
 | Migracion PostgreSQL/PostGIS a Supabase | `postgresql/cloud/`, `docs/Evidencia_Migracion_Cloud_Supabase.md` | Implementado y validado |
-| MongoDB Atlas | Pendiente de migracion desde MongoDB local | Pendiente |
+| Migracion MongoDB a Atlas | `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Implementado y validado |
 
 ## Indice
 
@@ -1834,6 +1849,8 @@ El diagrama representa la arquitectura objetivo para el crecimiento de la capa d
 - MongoDB, Inc. Hashed Sharding: https://www.mongodb.com/docs/manual/core/hashed-sharding/
 - MongoDB, Inc. Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
 - MongoDB, Inc. Atlas Free Cluster Limitations: https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/
+
+
 
 
 

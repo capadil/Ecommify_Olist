@@ -15,6 +15,7 @@ import os
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Any, Iterable
+from urllib.parse import quote_plus
 
 import psycopg
 from psycopg.rows import dict_row
@@ -34,7 +35,15 @@ SYNCED_AT = datetime.now(timezone.utc)
 
 
 def postgres_dsn() -> str:
-    """Construye la cadena de conexion a PostgreSQL usando variables Docker."""
+    """Construye la cadena de conexion a PostgreSQL.
+
+    Por defecto usa las variables del ambiente Docker local. Para ejecuciones
+    cloud acepta un DSN completo mediante POSTGRES_DSN o SUPABASE_DATABASE_URL.
+    """
+    cloud_dsn = os.getenv("POSTGRES_DSN") or os.getenv("SUPABASE_DATABASE_URL")
+    if cloud_dsn:
+        return cloud_dsn
+
     host = os.getenv("POSTGRES_HOST", "postgres")
     port = os.getenv("POSTGRES_PORT", "5432")
     db = os.getenv("POSTGRES_DB", "ecommify_db")
@@ -44,7 +53,22 @@ def postgres_dsn() -> str:
 
 
 def mongo_uri() -> str:
-    """Construye la URI de MongoDB usando el usuario root local del compose."""
+    """Construye la URI de MongoDB.
+
+    Por defecto usa el MongoDB local del compose. Para Atlas acepta una URI
+    completa mediante MONGO_URI o ATLAS_URI. Si la URI cloud no trae usuario
+    y password embebidos, permite recibirlos en ATLAS_USER y ATLAS_USER_PASS.
+    """
+    cloud_uri = os.getenv("MONGO_URI") or os.getenv("ATLAS_URI")
+    if cloud_uri:
+        user = os.getenv("ATLAS_USER")
+        password = os.getenv("ATLAS_USER_PASS")
+        authority = cloud_uri.split("://", 1)[1].split("/", 1)[0] if "://" in cloud_uri else ""
+        if user and password and "@" not in authority:
+            scheme, rest = cloud_uri.split("://", 1)
+            return f"{scheme}://{quote_plus(user)}:{quote_plus(password)}@{rest}"
+        return cloud_uri
+
     host = os.getenv("MONGO_HOST", "mongo")
     port = os.getenv("MONGO_PORT", "27017")
     user = os.getenv("MONGO_INITDB_ROOT_USERNAME", "ecommify_admin")

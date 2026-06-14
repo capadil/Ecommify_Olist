@@ -1,4 +1,4 @@
-# MongoDB - Diseno documental derivado
+﻿# MongoDB - Diseno documental derivado
 
 MongoDB se usa como capa derivada de lectura y analitica. No reemplaza a PostgreSQL como fuente de verdad.
 
@@ -33,14 +33,40 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 | `geo_analytics` | `mv_geo_sales_summary` |
 | `review_documents` | `order_reviews`, `orders`, `customers`, `order_items`, `products` |
 
+
+## Despliegue cloud MongoDB Atlas
+
+MongoDB Atlas aloja la copia cloud validada de la capa documental derivada. Docker local sigue siendo la fuente reproducible para reconstruir las colecciones desde PostgreSQL.
+
+La comunicacion cloud recomendada no conecta Atlas directamente contra Supabase. Se ejecuta el sincronizador externo `tools/sync_postgres_to_mongo.py`, leyendo desde PostgreSQL/Supabase y escribiendo en Atlas con operaciones idempotentes. Para ese modo, el script acepta `SUPABASE_DATABASE_URL` o `POSTGRES_DSN` para PostgreSQL, y `ATLAS_URI` o `MONGO_URI` para MongoDB. Si las credenciales de Atlas se mantienen separadas, tambien acepta `ATLAS_USER` y `ATLAS_USER_PASS`.
+
+| Aspecto | Resultado |
+|---|---|
+| Cluster | `ecommify-atlas` |
+| Base | `ecommify_analytics` |
+| Colecciones migradas | 5 colecciones de negocio |
+| Metodo de carga | `mongodump` local + `mongorestore` hacia Atlas |
+| Documentos restaurados | 256.417 documentos, 0 fallos |
+| Coleccion excluida del resultado final | `benchmark_results` |
+| Evidencia | `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` |
+
+Conteos finales validados en Atlas:
+
+| Coleccion | Documentos |
+|---|---:|
+| `product_catalog` | 32.951 |
+| `customer_profiles` | 99.441 |
+| `seller_performance` | 3.095 |
+| `geo_analytics` | 21.698 |
+| `review_documents` | 99.224 |
 ## Evidencias
 
 | Archivo | Proposito |
 |---|---|
 | `evidencias.md` | Documento academico con interpretacion de indices, conteos, sincronizacion y consultas analiticas MongoDB. |
 | `evidencias` | Salida cruda de consola usada como respaldo de trazabilidad. |
-| Coleccion `benchmark_results` | Resultados antes/despues de benchmarks MongoDB para calcular `executionTimeMillis` y ratios de eficiencia. |
-
+| Coleccion `benchmark_results` | Resultados antes/despues de benchmarks MongoDB local para calcular `executionTimeMillis` y ratios de eficiencia. No se conserva como coleccion funcional en Atlas. |
+| `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Evidencia de migracion MongoDB Docker -> MongoDB Atlas, indices, restore y conteos finales. |
 ## Decisiones aplicadas
 
 - Usar tipos documentales de MongoDB: `object`, `array`, `string`, `number`, `date`, `boolean`.
@@ -50,3 +76,7 @@ PostgreSQL usa llaves tecnicas internas `*_sk` para PK/FK y conserva los IDs Oli
 - `review_documents` usa indice unico compuesto `{ review_id: 1, order_id: 1 }`, porque el dataset puede asociar un mismo `review_id` con mas de una orden.
 - No modelar `*_sk` como requisito de consulta documental, salvo que se necesite auditoria interna de sincronizacion.
 - Los documentos se actualizan con `upsert`; repetir la sincronizacion no debe duplicar informacion.
+- MongoDB Atlas aloja la copia cloud validada de las colecciones derivadas; no reemplaza a PostgreSQL/Supabase como fuente relacional.
+
+
+

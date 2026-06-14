@@ -4,11 +4,11 @@
 
 ### Sintesis de implementacion realizada
 
-Se implementa la arquitectura fisica de Ecommify en un ambiente local reproducible con Docker Compose. La implementacion materializa las decisiones definidas en el `README.md` principal y en el documento tecnico de diseno de la Etapa 2: PostgreSQL se mantiene como fuente de verdad transaccional y MongoDB opera como capa documental derivada para lectura y analitica.
+Se implementa la arquitectura fisica objetivo de Ecommify sobre servicios cloud: Supabase para PostgreSQL/PostGIS y MongoDB Atlas para la capa documental derivada. Docker Compose se utiliza como ambiente reproducible de trabajo remoto, normalizacion, carga controlada, pruebas tecnicas y preparacion de artefactos de migracion. La implementacion materializa las decisiones definidas en el `README.md` principal y en el documento tecnico de diseno de la Etapa 2: PostgreSQL se mantiene como fuente de verdad transaccional y MongoDB opera como capa documental derivada para lectura y analitica.
 
-El proceso ejecutado incluyo la creacion del ambiente con PostgreSQL/PostGIS y MongoDB, la carga del dataset real Olist desde archivos CSV, la insercion en un modelo relacional normalizado con llaves tecnicas internas, la aplicacion de extensiones PostgreSQL, la creacion de indices especializados, el refresco de vistas materializadas, la sincronizacion PostgreSQL -> MongoDB y la validacion de consultas criticas con evidencias de rendimiento.
+El proceso ejecutado incluyo la creacion del ambiente local reproducible con PostgreSQL/PostGIS y MongoDB, la carga del dataset real Olist desde archivos CSV, la insercion en un modelo relacional normalizado con llaves tecnicas internas, la aplicacion de extensiones PostgreSQL, la creacion de indices especializados, el refresco de vistas materializadas, la sincronizacion PostgreSQL -> MongoDB y la validacion de consultas criticas con evidencias de rendimiento. Ese ambiente local sirvio como base controlada para migrar el modelo final a Supabase y las colecciones documentales a MongoDB Atlas.
 
-La implementacion se realizo primero en Docker local y luego se extendio a Supabase para PostgreSQL/PostGIS. Docker se conserva como fuente reproducible del proyecto; Supabase queda validado como despliegue cloud relacional/espacial con datos reales. MongoDB Atlas queda pendiente como siguiente fase para la capa documental.
+La implementacion se construyo primero en Docker para reducir riesgos y permitir reproducibilidad, pero la arquitectura final validada para la actividad es cloud: Supabase queda como despliegue relacional/espacial con datos reales y MongoDB Atlas como despliegue documental derivado. Docker se conserva como entorno de reconstruccion, pruebas y soporte operativo, no como destino arquitectonico principal.
 
 ### Principales optimizaciones aplicadas
 
@@ -60,7 +60,7 @@ Resultados de rendimiento mas relevantes:
 
 ### Scripts DDL ejecutados
 
-La guia solicita reportar scripts DDL ejecutados en Supabase. En esta iteracion los DDL se ejecutaron primero en PostgreSQL/PostGIS local mediante Docker y luego se importo una version compatible en Supabase. La version cloud excluyo staging y `benchmark_results`, y ajusto referencias de PostGIS y `pg_trgm` al schema `extensions`, que es donde Supabase aloja estas extensiones.
+La guia solicita reportar scripts DDL ejecutados en Supabase. En esta iteracion los DDL se construyeron y validaron primero en PostgreSQL/PostGIS local mediante Docker, para asegurar normalizacion, restricciones e indices antes de tocar cloud. Luego se importo una version compatible en Supabase. La version cloud excluyo staging y `benchmark_results`, y ajusto referencias de PostGIS y `pg_trgm` al schema `extensions`, que es donde Supabase aloja estas extensiones.
 
 | Orden | Script | Funcion | Estado |
 |---|---|---|---|
@@ -131,7 +131,7 @@ Despues   0.231 ms |
 
 ### Implementacion cloud PostgreSQL/PostGIS en Supabase
 
-La migracion a Supabase se ejecuto como despliegue cloud adicional, sin reemplazar Docker. El proyecto Supabase `Ecommify Olist` quedo en region `us-east-2`, con PostgreSQL `17.6`, PostGIS `3.3.7` y `pg_trgm 1.6`.
+La migracion a Supabase materializa la capa relacional/espacial de la arquitectura cloud objetivo. Docker no se reemplaza ni compite con Supabase; queda como ambiente de preparacion y reconstruccion. El proyecto Supabase `Ecommify Olist` quedo en region `us-east-2`, con PostgreSQL `17.6`, PostGIS `3.3.7` y `pg_trgm 1.6`.
 
 | Evidencia Supabase | Resultado |
 |---|---:|
@@ -233,9 +233,41 @@ Antes       157 docs | ########
 Despues      20 docs | #
 ```
 
+
+### Implementacion cloud MongoDB Atlas
+
+La migracion a MongoDB Atlas materializa la capa documental cloud de la arquitectura objetivo. La carga se ejecuto desde MongoDB local usando `mongodump` y `mongorestore`, porque Docker ya contenia una copia derivada y validada desde PostgreSQL. El objetivo fue llevar a Atlas las colecciones documentales finales sin usar MongoDB como fuente transaccional.
+
+| Evidencia Atlas | Resultado |
+|---|---:|
+| Conexion `ping` | `{ ok: 1 }` |
+| Colecciones creadas | 5 |
+| Archivo dump local | `/tmp/ecommify_analytics.archive`, 21 MB |
+| Documentos restaurados | 256.417 |
+| Fallos de restauracion | 0 |
+| `product_catalog` | 32.951 documentos |
+| `customer_profiles` | 99.441 documentos |
+| `seller_performance` | 3.095 documentos |
+| `geo_analytics` | 21.698 documentos |
+| `review_documents` | 99.224 documentos |
+
+La restauracion incluyo temporalmente `benchmark_results` con 8 documentos, pero esta coleccion se elimino de Atlas porque corresponde a evidencia local y no al modelo documental funcional.
+
+Durante `mongorestore` se registro una advertencia de version: el dump provenia de MongoDB `7.0.37` y Atlas ejecutaba MongoDB `8.0.26`. Aunque el proceso finalizo con 0 fallos y conteos correctos, se documenta como una limitacion a controlar en migraciones productivas.
+
+Tambien se ejecutaron pruebas `.explain("executionStats")` directamente sobre Atlas para confirmar uso de indices:
+
+| Coleccion Atlas | Indice validado | Documentos retornados | Documentos examinados | Llaves examinadas | Tiempo |
+|---|---|---:|---:|---:|---:|
+| `product_catalog` | `category.translated_name_1` | 20 | 20 | 20 | 0 ms |
+| `customer_profiles` | `location.state_1` | 20 | 20 | 20 | 0 ms |
+| `geo_analytics` | `state_1_city_1` | 20 | 20 | 20 | 0 ms |
+| `review_documents` | `review_score_1` | 0 | 0 | 0 | 0 ms |
+
+La evidencia confirma eficiencia documental en las tres consultas con resultados: cada documento retornado requirio examinar un documento y una llave. La consulta de `review_documents` valida disponibilidad del indice, pero debe repetirse con un filtro que retorne documentos si se requiere una comparacion cuantitativa mas robusta.
 ### Diseno teorico de sharding y replica sets
 
-La implementacion local Docker no activa sharding ni replica set distribuido. Se documenta como diseno teorico para una evolucion posterior.
+La implementacion local Docker no activa sharding ni replica set distribuido. MongoDB Atlas se valido como despliegue cloud administrado de la capa documental; sharding sigue documentado como diseno teorico para una evolucion posterior.
 
 | Elemento | Diseno propuesto | Justificacion |
 |---|---|---|
@@ -293,6 +325,25 @@ flowchart LR
 
 El flujo mantiene a PostgreSQL como fuente de verdad. MongoDB recibe documentos derivados a partir de tablas finales y vistas materializadas. La sincronizacion se ejecuta con `tools/sync_postgres_to_mongo.py` mediante el servicio temporal `mongo_sync` de Docker Compose.
 
+### Mejor practica de sincronizacion segun fuente de informacion
+
+La sincronizacion no debe entenderse como una relacion simetrica entre Supabase y Atlas. La decision arquitectonica del proyecto define una sola fuente de verdad: PostgreSQL/PostGIS. Por lo tanto, el sentido correcto es:
+
+```text
+PostgreSQL/PostGIS -> proceso de sincronizacion -> MongoDB/Atlas
+```
+
+No se recomienda sincronizacion bidireccional para este caso, porque MongoDB contiene proyecciones derivadas y podria introducir conflictos con pagos, ordenes, clientes o productos que deben conservar integridad relacional.
+
+| Nivel | Estrategia | Uso en Ecommify | Estado |
+|---|---|---|---|
+| Implementacion actual | Job batch idempotente con `bulk_write` y `upsert` | Reconstruir o actualizar colecciones derivadas desde PostgreSQL hacia MongoDB | Implementado en Docker y preparado para ejecutarse como Supabase -> Atlas |
+| Mejor evolucion incremental | Job programado con marca de agua por `updated_at` o tabla de control | Sincronizar solo cambios desde la ultima ejecucion | Recomendado como siguiente mejora |
+| Mejor practica productiva | CDC/eventos desde PostgreSQL mediante logical replication, outbox o webhooks hacia un worker | Propagar cambios transaccionales a documentos derivados con menor latencia | Diseno objetivo, no requerido para completar la actividad |
+| Flujo inverso Atlas -> PostgreSQL | No recomendado | MongoDB no debe escribir cambios de negocio de vuelta a PostgreSQL | Descartado |
+
+Para la actividad academica, el job batch idempotente es suficiente porque el dataset Olist es historico y no recibe operaciones en tiempo real. Para una plataforma productiva, la practica recomendada seria evolucionar a CDC o patron outbox: PostgreSQL registra el cambio transaccional, un worker externo lo consume, transforma el evento y actualiza Atlas con operaciones idempotentes.
+
 ### Estrategia de consistencia implementada
 
 | Aspecto | Decision |
@@ -306,6 +357,14 @@ El flujo mantiene a PostgreSQL como fuente de verdad. MongoDB recibe documentos 
 | Reejecucion | Permitida sin duplicar documentos |
 
 La consistencia fuerte se conserva en PostgreSQL mediante PK, FK, `UNIQUE`, `CHECK` y transacciones. MongoDB puede quedar temporalmente desactualizado hasta ejecutar el sincronizador, lo cual es aceptable porque no registra operaciones criticas de ordenes o pagos.
+
+En cloud, la comunicacion validada se interpreta de esta forma:
+
+```text
+Supabase PostgreSQL/PostGIS -> job Python externo -> MongoDB Atlas
+```
+
+Supabase y Atlas no se conectan directamente entre si. La pieza responsable de la comunicacion es el job de sincronizacion, que lee desde PostgreSQL y escribe documentos en MongoDB. Esto mantiene separacion de responsabilidades, permite reintentos controlados y evita almacenar logica documental dentro del motor transaccional.
 
 ## f. Lecciones aprendidas
 
@@ -328,14 +387,26 @@ La consistencia fuerte se conserva en PostgreSQL mediante PK, FK, `UNIQUE`, `CHE
 | Supabase free tier puede restringir recursos, extensiones o carga masiva | Riesgo de exceder almacenamiento o tener cargas lentas | Migracion solo del modelo final, sin staging ni benchmarks locales; tamano final validado: 210 MB. |
 | Almacenamiento y CPU limitados en servicios gratuitos | Benchmarks podrian variar por contencion del proveedor | Medicion local controlada y persistida en tabla/coleccion. |
 | Carga masiva CSV en servicios administrados puede requerir permisos adicionales | `COPY` desde archivos locales no siempre aplica igual | Separar staging, carga y modelo final para adaptar el proceso. |
-| MongoDB Atlas free tier tiene limites de almacenamiento y cluster | Sincronizacion completa podria depender del volumen final | MongoDB local en Docker para validar modelo documental e indices. |
+| MongoDB Atlas free tier tiene limites de almacenamiento y cluster | El dataset documental y datos de ejemplo pueden consumir espacio rapidamente | Migracion controlada desde Mongo local, eliminacion de `benchmark_results` y recomendacion de borrar `sample_mflix` si no se usa. |
 | Replica sets y sharding reales no son practicos en free tier basico | No se valida distribucion fisica real | Se documenta diseno teorico de replica set y sharding. |
+
+## Referencias oficiales para sincronizacion
+
+| Fuente | Aporte usado en la decision |
+|---|---|
+| [PostgreSQL Logical Replication](https://www.postgresql.org/docs/current/logical-replication.html) | PostgreSQL define replicacion logica como replicacion de cambios por identidad de replica, normalmente PK, con modelo publicacion/suscripcion y aplicacion transaccional de cambios. |
+| [PostgreSQL Logical Decoding](https://www.postgresql.org/docs/current/logicaldecoding.html) | Permite transmitir modificaciones SQL hacia consumidores externos mediante replication slots y plugins de salida. |
+| [Supabase Database Webhooks](https://supabase.com/docs/guides/database/webhooks) | Permiten enviar eventos `INSERT`, `UPDATE` y `DELETE` de tablas hacia sistemas externos usando triggers y `pg_net` asincrono. |
+| [Supabase Realtime Postgres Changes](https://supabase.com/docs/guides/realtime/postgres-changes) | Permite escuchar cambios de PostgreSQL despues de agregar tablas a la publicacion `supabase_realtime`. |
+| [MongoDB `bulkWrite`](https://www.mongodb.com/docs/manual/reference/method/db.collection.bulkWrite/) | Soporta actualizaciones masivas con `updateOne` y `upsert`, base de la sincronizacion idempotente implementada. |
+| [MongoDB Change Streams](https://www.mongodb.com/docs/manual/changeStreams/) | Permite reaccionar a cambios en colecciones, bases o despliegues; aplica como referencia para eventos desde MongoDB, aunque en Ecommify MongoDB no es fuente transaccional. |
 
 ## Conclusiones
 
 La implementacion confirma que la arquitectura definida es ejecutable con datos reales. PostgreSQL funciona como nucleo transaccional normalizado y MongoDB como capa documental derivada. Las evidencias muestran carga completa, uso efectivo de indices, aplicacion concreta de PostGIS y `pg_trgm`, vistas materializadas operativas, sincronizacion documental con `upsert` y benchmarks antes/despues con mejoras cuantitativas.
 
-El documento deja explicita la separacion de responsabilidades: Docker local sigue siendo la fuente reproducible y Supabase queda validado como despliegue cloud PostgreSQL/PostGIS. La migracion a MongoDB Atlas permanece como siguiente fase para completar la arquitectura cloud documental.
+El documento deja explicita la separacion de responsabilidades: la arquitectura objetivo es cloud con Supabase y MongoDB Atlas, mientras Docker local cumple el rol de ambiente reproducible de normalizacion, carga, pruebas y soporte. Supabase queda validado como despliegue cloud PostgreSQL/PostGIS y MongoDB Atlas como despliegue cloud documental, incluyendo conteos finales, indices y pruebas `.explain("executionStats")` sobre consultas representativas.
+
 
 
 
