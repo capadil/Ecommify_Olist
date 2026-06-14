@@ -1,4 +1,4 @@
-# Local environment and secrets
+﻿# Local environment and secrets
 .env
 
 # Local data and generated evidence
@@ -11,3 +11,5 @@
 Thumbs.db
 .vscode/
 .idea/
+# Generated cloud migration data dumps
+/postgresql/cloud/cloud_supabase_data_*.sql

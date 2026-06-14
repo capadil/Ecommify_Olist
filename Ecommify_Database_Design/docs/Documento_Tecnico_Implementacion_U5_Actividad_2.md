@@ -8,7 +8,7 @@ Se implementa la arquitectura fisica de Ecommify en un ambiente local reproducib
 
 El proceso ejecutado incluyo la creacion del ambiente con PostgreSQL/PostGIS y MongoDB, la carga del dataset real Olist desde archivos CSV, la insercion en un modelo relacional normalizado con llaves tecnicas internas, la aplicacion de extensiones PostgreSQL, la creacion de indices especializados, el refresco de vistas materializadas, la sincronizacion PostgreSQL -> MongoDB y la validacion de consultas criticas con evidencias de rendimiento.
 
-La implementacion se realizo en Docker local, estrategia de carga y limites del plan gratuito.
+La implementacion se realizo primero en Docker local y luego se extendio a Supabase para PostgreSQL/PostGIS. Docker se conserva como fuente reproducible del proyecto; Supabase queda validado como despliegue cloud relacional/espacial con datos reales. MongoDB Atlas queda pendiente como siguiente fase para la capa documental.
 
 ### Principales optimizaciones aplicadas
 
@@ -60,7 +60,7 @@ Resultados de rendimiento mas relevantes:
 
 ### Scripts DDL ejecutados
 
-La guia solicita reportar scripts DDL ejecutados en Supabase. En esta implementacion, por decision del proceso y enfoque de aprendizaje con Docker, los DDL fueron ejecutados en PostgreSQL/PostGIS local dentro de Docker. No se afirma ejecucion en Supabase porque no existe evidencia de ello.
+La guia solicita reportar scripts DDL ejecutados en Supabase. En esta iteracion los DDL se ejecutaron primero en PostgreSQL/PostGIS local mediante Docker y luego se importo una version compatible en Supabase. La version cloud excluyo staging y `benchmark_results`, y ajusto referencias de PostGIS y `pg_trgm` al schema `extensions`, que es donde Supabase aloja estas extensiones.
 
 | Orden | Script | Funcion | Estado |
 |---|---|---|---|
@@ -73,9 +73,10 @@ La guia solicita reportar scripts DDL ejecutados en Supabase. En esta implementa
 | 07 | `postgresql/seed_data/paso_07_cargar_csv_staging.sql` | Carga CSV reales a staging. | Ejecutado en Docker |
 | 08 | `postgresql/seed_data/paso_08_insertar_modelo_final.sql` | Inserta al modelo final resolviendo llaves tecnicas. | Ejecutado en Docker |
 | 09 | `postgresql/seed_data/paso_09_validar_carga.sql` | Valida conteos y columna espacial generada. | Ejecutado en Docker |
-| 10 | `postgresql/queries/paso_09_benchmark_antes_despues_indices.sql` | Persiste benchmarks antes/despues en `ecommify.benchmark_results`. | Ejecutado en Docker |
+| 10 | postgresql/queries/paso_09_benchmark_antes_despues_indices.sql | Persiste benchmarks antes/despues en ecommify.benchmark_results. | Ejecutado en Docker |
+| 11 | `postgresql/cloud/cloud_supabase_schema_supabase.sql` | DDL final compatible con Supabase, sin staging ni benchmark local. | Ejecutado en Supabase |
 
-Para Supabase, el DDL es reutilizable como base, pero requiere validar previamente disponibilidad de extensiones (`postgis`, `pg_trgm`), permisos de `CREATE EXTENSION`, estrategia de carga masiva y limites del plan gratuito.
+En Supabase se validaron `postgis 3.3.7` y `pg_trgm 1.6` en el schema `extensions`. La carga se realizo desde el modelo final validado en Docker usando `pg_dump --data-only` y `COPY`, no desde staging, para reducir consumo del plan gratuito.
 
 ### Estrategia de indexacion con justificacion tecnica
 
@@ -127,6 +128,37 @@ Materialized view sales dashboard
 Despues   0.231 ms |
 ```
 
+
+### Implementacion cloud PostgreSQL/PostGIS en Supabase
+
+La migracion a Supabase se ejecuto como despliegue cloud adicional, sin reemplazar Docker. El proyecto Supabase `Ecommify Olist` quedo en region `us-east-2`, con PostgreSQL `17.6`, PostGIS `3.3.7` y `pg_trgm 1.6`.
+
+| Evidencia Supabase | Resultado |
+|---|---:|
+| Tamano final de base | 210 MB |
+| `category_translation` | 71 registros |
+| `customers` | 99.441 registros |
+| `sellers` | 3.095 registros |
+| `products` | 32.951 registros |
+| `orders` | 99.441 registros |
+| `order_items` | 112.650 registros |
+| `order_payments` | 103.886 registros |
+| `order_reviews` | 99.224 registros |
+| `geolocation_clean` | 27.912 registros |
+| Filas con `geog` PostGIS | 27.912 registros |
+
+Tambien se validaron indices criticos en Supabase: `idx_category_name_trgm`, `idx_customers_city_trgm`, `idx_geolocation_clean_geog_gist`, `idx_order_reviews_message_trgm` e `idx_sellers_city_trgm`.
+
+Los `EXPLAIN ANALYZE` ejecutados en Supabase confirmaron uso de indices:
+
+| Query critica en Supabase | Indice / acceso observado | Execution Time |
+|---|---|---:|
+| OLTP por `order_id` | `idx_orders_order_id`, PK de clientes e `idx_order_payments_order_sk` | 14.619 ms |
+| `pg_trgm` por ciudad | `idx_customers_city_trgm` con Bitmap Index Scan | 838.341 ms |
+| PostGIS por radio | `idx_geolocation_clean_geog_gist` con Index Scan | 161.061 ms |
+| Vista materializada de ventas | `ux_mv_sales_by_category_monthly` | 3.160 ms |
+
+Los tiempos cloud son mayores que Docker local por red, pooler, plan gratuito, cache y recursos compartidos. La evidencia relevante para esta actividad es que Supabase ejecuta el modelo final con datos reales y usa los indices/extensiones esperados.
 ### Queries criticas optimizadas
 
 | Query critica | Optimizacion validada | Resultado |
@@ -287,13 +319,13 @@ La consistencia fuerte se conserva en PostgreSQL mediante PK, FK, `UNIQUE`, `CHE
 | `review_documents` solo cargaba 994 documentos | Cambiar unicidad a `{ review_id, order_id }` | Las reglas de unicidad deben validarse con datos reales. |
 | Consultas MongoDB no mostraban evidencia | Agregar salida explicita con `printjson` | Los scripts deben producir evidencia verificable. |
 | Se tenia evidencia solo posterior a indices | Crear benchmarks persistidos en tabla/coleccion | La comparacion antes/despues requiere mediciones controladas. |
-| README redundantes por carpeta | Consolidar documentacion por responsabilidad | La documentacion debe tener fuente de verdad clara. |
+| README redundantes por carpeta | Consolidar documen   acion por responsabilidad | La documentacion debe tener fuente de verdad clara. |
 
 ### Limitaciones del free tier y workarounds implementados
 
 | Limitacion | Impacto | Workaround aplicado |
 |---|---|---|
-| Supabase free tier puede restringir recursos, extensiones o carga masiva | Riesgo de ejecucion parcial o lenta del dataset completo | Implementacion local con Docker/PostGIS para reproducibilidad completa. |
+| Supabase free tier puede restringir recursos, extensiones o carga masiva | Riesgo de exceder almacenamiento o tener cargas lentas | Migracion solo del modelo final, sin staging ni benchmarks locales; tamano final validado: 210 MB. |
 | Almacenamiento y CPU limitados en servicios gratuitos | Benchmarks podrian variar por contencion del proveedor | Medicion local controlada y persistida en tabla/coleccion. |
 | Carga masiva CSV en servicios administrados puede requerir permisos adicionales | `COPY` desde archivos locales no siempre aplica igual | Separar staging, carga y modelo final para adaptar el proceso. |
 | MongoDB Atlas free tier tiene limites de almacenamiento y cluster | Sincronizacion completa podria depender del volumen final | MongoDB local en Docker para validar modelo documental e indices. |
@@ -303,4 +335,7 @@ La consistencia fuerte se conserva en PostgreSQL mediante PK, FK, `UNIQUE`, `CHE
 
 La implementacion confirma que la arquitectura definida es ejecutable con datos reales. PostgreSQL funciona como nucleo transaccional normalizado y MongoDB como capa documental derivada. Las evidencias muestran carga completa, uso efectivo de indices, aplicacion concreta de PostGIS y `pg_trgm`, vistas materializadas operativas, sincronizacion documental con `upsert` y benchmarks antes/despues con mejoras cuantitativas.
 
-El documento tambien deja explicita una limitacion importante: la ejecucion evidenciada corresponde a Docker local, no a Supabase. Esta decision no contradice el diseno del proyecto; permite una implementacion reproducible, verificable y alineada con las decisiones tecnicas tomadas durante la actividad.
+El documento deja explicita la separacion de responsabilidades: Docker local sigue siendo la fuente reproducible y Supabase queda validado como despliegue cloud PostgreSQL/PostGIS. La migracion a MongoDB Atlas permanece como siguiente fase para completar la arquitectura cloud documental.
+
+
+

@@ -1,4 +1,4 @@
-# PostgreSQL - Diseno relacional
+﻿# PostgreSQL - Diseno relacional
 
 Esta carpeta contiene los scripts tecnicos del modelo relacional de Ecommify.
 
@@ -53,6 +53,19 @@ La carga final mantiene este orden logico: categorias, clientes, sellers, produc
 
 Las tablas hijas resuelven sus FK internas con `INSERT ... SELECT` desde staging. Por ejemplo, `orders.customer_sk` se obtiene desde `customers.customer_id`, y `order_items.product_sk` desde `products.product_id`.
 
+## Artefactos cloud Supabase
+
+La carpeta `cloud/` contiene artefactos generados para migrar el modelo final PostgreSQL/PostGIS hacia Supabase sin reemplazar Docker local.
+
+| Archivo | Proposito |
+|---|---|
+| `cloud/cloud_supabase_schema.sql` | Export inicial del esquema `ecommify` desde Docker. |
+| `cloud/cloud_supabase_schema_clean.sql` | Variante sin staging, sin `benchmark_results` y sin funcion de benchmark local. |
+| `cloud/cloud_supabase_schema_supabase.sql` | Variante compatible con Supabase, ajustada al schema `extensions` para PostGIS y `pg_trgm`. |
+| `cloud/cloud_supabase_data_bloque_01_catalogo.sql` | Primer bloque de datos migrado inicialmente con inserts por columnas; se conserva como evidencia operativa. |
+
+Los datos restantes se cargaron mediante `pg_dump --data-only` en modo `COPY` desde archivos temporales dentro del contenedor, para evitar problemas de encoding y mejorar rendimiento. La evidencia completa esta en `docs/Evidencia_Migracion_Cloud_Supabase.md`.
+
 ## Evidencias
 
 | Archivo | Proposito |
@@ -60,6 +73,7 @@ Las tablas hijas resuelven sus FK internas con `INSERT ... SELECT` desde staging
 | `evidencias.md` | Documento academico con interpretacion de pruebas PostgreSQL, PostGIS, `pg_trgm`, vistas materializadas e indices OLTP. |
 | `evidencias` | Salida cruda de consola usada como respaldo de trazabilidad. |
 | Tabla `benchmark_results` | Resultados antes/despues de benchmarks PostgreSQL para construir tablas y graficos comparativos. |
+| `docs/Evidencia_Migracion_Cloud_Supabase.md` | Evidencia de migracion PostgreSQL/PostGIS a Supabase, conteos, indices y planes `EXPLAIN ANALYZE`. |
 
 ## Decisiones aplicadas
 
@@ -73,4 +87,10 @@ Las tablas hijas resuelven sus FK internas con `INSERT ... SELECT` desde staging
 - `TEXT[]` se usa en `products.photo_urls`.
 - Pagos permanecen en `order_payments`; la regla natural `(order_sk, payment_sequential)` se conserva como `UNIQUE`.
 - MongoDB consume documentos derivados, no reemplaza estas tablas.
+- Supabase aloja una copia cloud validada del modelo final PostgreSQL/PostGIS; Docker local sigue siendo la fuente reproducible.
 - `geolocation_clean.geog` se genera automaticamente desde longitud y latitud; no se carga manualmente desde CSV.
+
+
+
+
+

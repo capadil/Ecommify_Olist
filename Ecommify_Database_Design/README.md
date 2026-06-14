@@ -1,4 +1,4 @@
-# Ecommify Database Design
+﻿# Ecommify Database Design
 
 ## Estructura actual del proyecto
 
@@ -23,6 +23,7 @@ Ecommify_Database_Design/
 |   |-- Actividad_U4_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
 |   |-- Documento_Tecnico_Implementacion_U5_Actividad_2.md
+|   |-- Evidencia_Migracion_Cloud_Supabase.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
@@ -30,6 +31,11 @@ Ecommify_Database_Design/
 |   `-- Presentacion ejecutiva.pptx
 |-- postgresql/
 |   |-- README.md
+|   |-- cloud/
+|   |   |-- cloud_supabase_schema.sql
+|   |   |-- cloud_supabase_schema_clean.sql
+|   |   |-- cloud_supabase_schema_supabase.sql
+|   |   `-- cloud_supabase_data_bloque_01_catalogo.sql
 |   |-- schema/
 |   |   |-- paso_01_crear_esquema.sql
 |   |   |-- paso_02_crear_tablas_base.sql
@@ -109,6 +115,30 @@ cd docker
 docker compose run --rm mongo_sync
 ```
 
+### Despliegue cloud controlado
+
+El despliegue cloud se agrega como una extension de la implementacion local, no como reemplazo de Docker. La arquitectura validada queda asi:
+
+```text
+Docker PostgreSQL/PostGIS local -> Supabase PostgreSQL/PostGIS
+Docker MongoDB local              -> MongoDB Atlas (pendiente)
+```
+
+Estado validado en Supabase:
+
+| Aspecto | Resultado |
+|---|---|
+| Proyecto | Ecommify Olist |
+| Region | us-east-2 |
+| PostgreSQL | 17.6 |
+| Extensiones | PostGIS 3.3.7 y pg_trgm 1.6 en schema `extensions` |
+| Tablas finales migradas | 9 tablas del esquema `ecommify` |
+| Datos reales cargados | Conteos equivalentes a Docker local |
+| Tamano final Supabase | 210 MB |
+| Evidencia | `docs/Evidencia_Migracion_Cloud_Supabase.md` |
+| Artefactos SQL cloud | `postgresql/cloud/` |
+
+No se migraron tablas staging ni `benchmark_results` a Supabase para cuidar el limite del plan gratuito y mantener el despliegue cloud enfocado en el modelo final.
 ### Secuencia tecnica de artefactos
 
 | Orden | Carpeta / archivo | Proposito |
@@ -141,7 +171,7 @@ docker compose run --rm mongo_sync
 - `docs/Modelo_Entidad_Relacion.md`: modelo entidad-relacion en Markdown.
 - `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
 - `docs/pdf-style.css`: estilos de exportacion PDF para tablas y bloques largos.
-- `docs/Presentación ejecutiva.pptx`: presentacion ejecutiva del proyecto.
+- `docs/PresentaciÃ³n ejecutiva.pptx`: presentacion ejecutiva del proyecto.
 - `postgresql/seed_data/`: scripts de staging, carga CSV, insercion al modelo final y validacion.
 - `postgresql/evidencias.md`: lectura academica de las evidencias PostgreSQL; `postgresql/evidencias` conserva la salida cruda.
 - `mongodb/evidencias.md`: lectura academica de las evidencias MongoDB; `mongodb/evidencias` conserva la salida cruda.
@@ -157,8 +187,10 @@ La Unidad 5 - Actividad 2 queda consolidada como una implementacion local reprod
 | Sincronizar MongoDB | `tools/sync_postgres_to_mongo.py`, `tools/requirements-sync.txt`, `docker/README.md` | Implementado con `upsert` |
 | Evidencias PostgreSQL | `postgresql/evidencias.md` y `postgresql/evidencias` | Documentado y respaldado |
 | Evidencias MongoDB | `mongodb/evidencias.md` y `mongodb/evidencias` | Documentado y respaldado |
-| Benchmarks comparativos | `benchmark_results` en PostgreSQL y MongoDB | Pendiente de ejecucion para cerrar medicion antes/despues |
+| Benchmarks comparativos | `benchmark_results` en PostgreSQL y MongoDB | Ejecutado y documentado |
 | Decisiones tecnicas validadas | PostGIS, `pg_trgm`, vistas materializadas, indices, validadores MongoDB, indice compuesto en `review_documents` | Validado con dataset real |
+| Migracion PostgreSQL/PostGIS a Supabase | `postgresql/cloud/`, `docs/Evidencia_Migracion_Cloud_Supabase.md` | Implementado y validado |
+| MongoDB Atlas | Pendiente de migracion desde MongoDB local | Pendiente |
 
 ## Indice
 
@@ -189,7 +221,7 @@ La Unidad 5 - Actividad 2 queda consolidada como una implementacion local reprod
 - [Distribucion temporal](#7-distribucion-temporal)
 - [Distribucion geografica](#8-distribucion-geografica)
 - [Vista integrada orders_full](#9-vista-integrada-orders_full)
-- [Implicaciones para el diseño de base de datos](#10-implicaciones-para-el-diseno-de-base-de-datos)
+- [Implicaciones para el diseÃ±o de base de datos](#10-implicaciones-para-el-diseno-de-base-de-datos)
 - [Decision arquitectonica preliminar](#11-decision-arquitectonica-preliminar)
 - [Matriz de decision PostgreSQL vs MongoDB](#12-matriz-de-decision-postgresql-vs-mongodb)
   - [Ajustes aplicados desde la Etapa 1](#ajustes-aplicados-desde-la-etapa-1)
@@ -218,7 +250,7 @@ El analisis inicial nos indica evaluar `JSONB`, arrays, `hstore`, composite type
 | Arrays | Permiten almacenar listas simples de valores del mismo tipo. | Lista de URLs de fotos de producto, etiquetas internas de catalogo, flags simples de segmentacion. | No son ideales si cada elemento necesita atributos propios o relaciones. | Usarlos para listas atomicas simples; si el dato necesita detalle, crear tabla relacionada. |
 | `hstore` | Modelo clave-valor simple para texto; util cuando todos los valores son cadenas. | Alternativa ligera para atributos simples heredados o metadata textual. | Menos expresivo que `JSONB`; se solapa con casos que `JSONB` resuelve mejor. | No priorizarlo; preferir `JSONB` salvo que se necesite clave-valor textual muy simple. |
 | Composite types | Agrupan varios campos bajo un tipo reutilizable. | Direccion logica, dimensiones de producto o coordenadas si se quisiera encapsular estructura. | Pueden reducir claridad si se abusa; las consultas y constraints pueden ser mas incomodas que columnas normales. | Evaluarlo solo para estructuras muy estables y repetidas; inicialmente mantener columnas normalizadas. |
-| Ranges | Modelan intervalos con operadores nativos para solapamiento, inclusion y busqueda por rango. | Periodos de promocion, ventanas de entrega, vigencia de campañas o estados temporales. | No aplica a todos los campos de fecha; requiere consultas orientadas a intervalos. | Incorporarlo si se agregan promociones o ventanas de entrega como entidad del proyecto. |
+| Ranges | Modelan intervalos con operadores nativos para solapamiento, inclusion y busqueda por rango. | Periodos de promocion, ventanas de entrega, vigencia de campaÃ±as o estados temporales. | No aplica a todos los campos de fecha; requiere consultas orientadas a intervalos. | Incorporarlo si se agregan promociones o ventanas de entrega como entidad del proyecto. |
 
 ### 2. Comparacion inicial: `JSONB` vs columnas normalizadas
 
@@ -241,7 +273,7 @@ Decision de trabajo: en el modelo de Ecommify, las columnas normalizadas deben s
 | Mantener dimensiones como columnas | `products` | Peso, alto, ancho y largo son medibles, consultables y validables. | Columnas numericas con restricciones de valores no negativos o positivos segun regla. | Subdocumento `dimensions` derivado para lectura. | Adoptado |
 | Mantener pagos normalizados | `order_payments` | Los pagos requieren consistencia financiera, secuencia e integridad referencial. | `payment_sk` como PK tecnica y `UNIQUE (order_sk, payment_sequential)`. | Resumen derivado, no fuente de verdad. | Adoptado |
 | Incorporar `orders.lifecycle JSONB` | `orders` | Los eventos complementarios del ciclo de vida pueden variar sin reemplazar fechas principales. | Columna `JSONB` para historial complementario; fechas operativas siguen normalizadas. | Timeline derivado en documentos analiticos. | Adoptado |
-| Excluir promociones con ranges del alcance inicial | `promotions` | El dataset base no incluye promociones ni campañas. | No se crea modulo inicial de promociones. | No se crea coleccion documental inicial. | Descartado para esta version |
+| Excluir promociones con ranges del alcance inicial | `promotions` | El dataset base no incluye promociones ni campaÃ±as. | No se crea modulo inicial de promociones. | No se crea coleccion documental inicial. | Descartado para esta version |
 | Descartar `hstore` | PostgreSQL | `JSONB` cubre mejor los casos flexibles previstos. | No se habilita la extension `hstore`. | Sin impacto documental. | Descartado |
 | Descartar composite type para dimensiones | `products` | Las columnas simples facilitan constraints, indices y lectura del modelo. | No se crea composite type; se conservan columnas numericas. | `dimensions` puede existir solo como subdocumento derivado. | Descartado |
 #### 3.1 Implementacion de extensiones PostgreSQL
@@ -297,13 +329,13 @@ Referencias oficiales consultadas:
 - Que atributos variables reales tendria un producto tecnologico en Ecommify: marca, modelo, garantia, color, memoria, compatibilidad, condicion?
 - Las fotos del producto deben ser solo una cantidad (`product_photos_qty`) como en Olist o una lista real de URLs?
 - El ciclo de vida de una orden debe quedarse solo con fechas principales o conviene guardar eventos historicos adicionales?
-- El proyecto incluira promociones, campañas o ventanas de entrega que justifiquen usar ranges?
+- El proyecto incluira promociones, campaÃ±as o ventanas de entrega que justifiquen usar ranges?
 - Se requiere que algun atributo flexible sea consultado frecuentemente? Si la respuesta es si, se debe definir indice o columna normalizada.
 
 
 ### 5. Modelado hibrido OLTP / OLAP
 
-El analisis de cargas nos indica la necesidad de estudiar tecnicas de modelado hibrido, es decir, un diseño que soporte transacciones operacionales y consultas analiticas sin mezclar responsabilidades. Para Ecommify, la decision preliminar es mantener PostgreSQL como fuente de verdad transaccional y construir estructuras analiticas derivadas mediante vistas materializadas, particiones, jobs programados y documentos MongoDB orientados a lectura.
+El analisis de cargas nos indica la necesidad de estudiar tecnicas de modelado hibrido, es decir, un diseÃ±o que soporte transacciones operacionales y consultas analiticas sin mezclar responsabilidades. Para Ecommify, la decision preliminar es mantener PostgreSQL como fuente de verdad transaccional y construir estructuras analiticas derivadas mediante vistas materializadas, particiones, jobs programados y documentos MongoDB orientados a lectura.
 
 #### Diagrama de arquitectura hibrida OLTP / OLAP
 
@@ -370,7 +402,7 @@ flowchart LR
 
 #### 5.1 Requisitos OLTP vs OLAP de Ecommify
 
-| Tipo de carga | Necesidad en Ecommify | Tablas / estructuras involucradas | Criterio de diseño |
+| Tipo de carga | Necesidad en Ecommify | Tablas / estructuras involucradas | Criterio de diseÃ±o |
 |---|---|---|---|
 | OLTP | Registrar ordenes, items, pagos, clientes, productos y vendedores con consistencia. | `orders`, `order_items`, `order_payments`, `customers`, `products`, `sellers`. | Modelo relacional normalizado, PK/FK, constraints e indices sobre claves de busqueda. |
 | OLTP | Consultar estado de una orden y sus pagos. | `orders`, `order_payments`, `order_items`. | Acceso por `order_id`, consistencia fuerte y pagos fuera de `JSONB`. |
@@ -404,7 +436,7 @@ orders_2018_01
 ...
 ```
 
-Impacto en el diseño:
+Impacto en el diseÃ±o:
 
 - El EDA debe conservar el analisis temporal por `order_purchase_timestamp`.
 - La normalizacion no cambia: `orders` sigue siendo entidad central en 3FN.
@@ -420,7 +452,7 @@ Las vistas materializadas permiten resolver necesidades OLAP sin convertir `orde
 |---|---|---|---|
 | `mv_sales_by_category_monthly` | `orders`, `order_items`, `products`, `category_translation`, `order_payments` | Ventas mensuales por categoria, ingresos, cantidad de ordenes e items. | Refresh semanal o diario si el dashboard lo requiere. |
 | `mv_customer_segments` | `customers`, `orders`, `order_payments`, `order_reviews` | Segmentacion de clientes por frecuencia, gasto, recencia y satisfaccion. | Refresh semanal. |
-| `mv_seller_performance_monthly` | `sellers`, `order_items`, `orders`, `order_reviews` | Desempeño de vendedores por ventas, entregas y calificacion. | Refresh semanal. |
+| `mv_seller_performance_monthly` | `sellers`, `order_items`, `orders`, `order_reviews` | DesempeÃ±o de vendedores por ventas, entregas y calificacion. | Refresh semanal. |
 | `mv_geo_sales_summary` | `customers`, `sellers`, `orders`, `geolocation_clean` | Analisis por estado, ciudad o prefijo postal. | Refresh semanal o mensual. |
 
 Decision de trabajo: `orders_full` se mantiene como vista exploratoria o base conceptual, pero los dashboards deben apoyarse en vistas materializadas especificas y documentadas.
@@ -451,7 +483,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-Impacto en el documento: agregar en el diseño logico una subseccion de auditoria operacional y triggers. En PostgreSQL, esto se convertira en script DDL. En MongoDB, `updated_at` puede existir en documentos derivados, pero no debe ser la fuente de verdad.
+Impacto en el documento: agregar en el diseÃ±o logico una subseccion de auditoria operacional y triggers. En PostgreSQL, esto se convertira en script DDL. En MongoDB, `updated_at` puede existir en documentos derivados, pero no debe ser la fuente de verdad.
 
 #### 5.5 Estrategia de mantenimiento
 
@@ -476,11 +508,11 @@ Decision de trabajo: documentar estos jobs como parte del plan de mantenimiento,
 | OLAP | Tiempo de refresh de vistas materializadas | Ajustar frecuencia de mantenimiento. |
 | OLAP | Tiempo de consulta de dashboards | Validar si las vistas materializadas son suficientes. |
 | OLAP | Desfase entre datos transaccionales y analiticos | Medir frescura de informacion para reportes. |
-| OLAP | Tamaño de vistas materializadas y documentos MongoDB | Planificar almacenamiento y escalamiento. |
+| OLAP | TamaÃ±o de vistas materializadas y documentos MongoDB | Planificar almacenamiento y escalamiento. |
 
 #### 5.7 Estrategia de escalamiento
 
-| Escenario | Señal de alerta | Accion propuesta |
+| Escenario | SeÃ±al de alerta | Accion propuesta |
 |---|---|---|
 | Free tier o instancia inicial se queda corta | Consultas lentas, refresh muy largo, almacenamiento alto. | Optimizar indices, reducir frecuencia de refresh o subir plan. |
 | `orders` crece rapidamente | Escaneos por fecha tardan demasiado. | Activar particionamiento mensual y revisar pruning de particiones. |
@@ -488,7 +520,7 @@ Decision de trabajo: documentar estos jobs como parte del plan de mantenimiento,
 | Geolocalizacion pesa demasiado | Consultas geograficas lentas o duplicados altos. | Consolidar `geolocation_clean`, usar `geog` generado con PostGIS y agregar indice GiST. |
 | Catalogo requiere atributos muy variables | Muchas migraciones para nuevas columnas. | Usar `products.specifications JSONB` con gobernanza de claves permitidas. |
 
-Decision de trabajo: el escalamiento debe empezar por diseño fisico, indices, particiones y vistas materializadas antes de desnormalizar el nucleo transaccional.
+Decision de trabajo: el escalamiento debe empezar por diseÃ±o fisico, indices, particiones y vistas materializadas antes de desnormalizar el nucleo transaccional.
 
 ### 6. Referencias de trabajo
 
@@ -510,7 +542,7 @@ Esta seccion incorpora decisiones utiles del documento de trabajo de la unidad 2
 |---|---|---|---|
 | Gestion de catalogo | Administracion de productos, dimensiones, pesos y categorias jerarquicas. | Se conserva `products` como tabla base en PostgreSQL y se permite catalogo enriquecido en MongoDB. | `products` mantiene columnas normalizadas para dimensiones y agrega `specifications JSONB` y `photo_urls TEXT[]` como flexibilidad controlada. |
 | Gestion transaccional | Procesamiento atomico de pedidos, pagos y seguimiento logistico. | PostgreSQL es la fuente de verdad para `orders`, `order_items` y `order_payments`. | Se mantienen PK/FK, pagos fuera de `JSONB`, constraints y claves compuestas donde aplica. |
-| Gestion analitica y feedback | Registro de reseñas y analisis geografico basado en prefijos postales. | Reseñas y geografia se mantienen relacionadas con el nucleo, pero pueden alimentar documentos y vistas analiticas. | `order_reviews` puede existir en PostgreSQL y MongoDB derivado; `geolocation` debe limpiarse como `geolocation_clean`. |
+| Gestion analitica y feedback | Registro de reseÃ±as y analisis geografico basado en prefijos postales. | ReseÃ±as y geografia se mantienen relacionadas con el nucleo, pero pueden alimentar documentos y vistas analiticas. | `order_reviews` puede existir en PostgreSQL y MongoDB derivado; `geolocation` debe limpiarse como `geolocation_clean`. |
 | Trazabilidad logistica | Gestion de fechas de compra, aprobacion, despacho, entrega estimada y entrega real. | Las fechas principales permanecen como columnas de `orders`; `orders.lifecycle JSONB` solo complementa eventos. | `order_purchase_timestamp` es clave para consultas temporales y particionamiento de `orders`. |
 
 ### Requisitos no funcionales adoptados
@@ -518,7 +550,7 @@ Esta seccion incorpora decisiones utiles del documento de trabajo de la unidad 2
 | Requisito no funcional | Como aparece en el documento | Como queda alineado en este README | Impacto en el modelo |
 |---|---|---|---|
 | Consistencia | Garantizar integridad referencial en transacciones ACID. | PostgreSQL prioriza consistencia para ordenes, items, pagos, clientes, productos y vendedores. | Uso de PK, FK, `NOT NULL`, `CHECK` e indices transaccionales. |
-| Flexibilidad | Manejar datos dispersos o variables en catalogo y reseñas. | La flexibilidad no reemplaza el modelo relacional; se usa en `JSONB`, arrays y MongoDB derivado. | `products.specifications JSONB`, `products.photo_urls TEXT[]` y documentos `product_catalog`. |
+| Flexibilidad | Manejar datos dispersos o variables en catalogo y reseÃ±as. | La flexibilidad no reemplaza el modelo relacional; se usa en `JSONB`, arrays y MongoDB derivado. | `products.specifications JSONB`, `products.photo_urls TEXT[]` y documentos `product_catalog`. |
 | Escalabilidad | Soportar crecimiento de `orders` y `order_items` sin degradar rendimiento. | Se adopta modelado hibrido OLTP/OLAP con particiones, vistas materializadas y documentos derivados. | `orders` particionada por fecha, MVs para dashboards y jobs de mantenimiento. |
 | Rendimiento | Optimizar busquedas geograficas y por texto. | Se mantiene como decision tecnica para indices y extensiones. | Uso adoptado de `pg_trgm`, indices por fecha/clave y PostGIS con `geog` para geografia. |
 
@@ -550,7 +582,7 @@ Estas restricciones se incorporan porque fortalecen la consistencia del modelo y
 | Fecha de compra obligatoria | `orders.order_purchase_timestamp` | `NOT NULL` | Toda orden debe tener fecha de compra; ademas soporta analisis temporal y particionamiento. |
 | Estado de orden obligatorio | `orders.order_status` | `NOT NULL` recomendado | Permite seguimiento operacional y segmentacion de ordenes por estado. |
 | Categoria de producto controlada | `products.product_category_name` | FK hacia `category_translation` cuando exista la categoria limpia | Evita inconsistencias de catalogo y permite analisis por categoria. |
-| Reseñas con score valido | `order_reviews.review_score` | `CHECK (review_score BETWEEN 1 AND 5)` | La escala de reseñas debe mantenerse dentro del rango valido. |
+| ReseÃ±as con score valido | `order_reviews.review_score` | `CHECK (review_score BETWEEN 1 AND 5)` | La escala de reseÃ±as debe mantenerse dentro del rango valido. |
 
 ### Decision de llaves tecnicas y trazabilidad
 
@@ -595,25 +627,25 @@ MongoDB debe recibir datos derivados, no reemplazar las restricciones transaccio
 
 ## Introduccion
 
-Para esta actividad nuestro caso se basará en Ecommify es una plataforma de e-commerce multivendedor enfocada en productos tecnológicos. Como parte de la actividad que trabajaremos a lo largo del ciclo nos enfocaremos en diseñar la base de su arquitectura de datos, para la actividad estamos trabajando con el dataset real "Brazilian E-commerce (Olist)" extraído de Kaggle. El objetivo de este informe es trazar nuestra hoja de ruta técnica y definir cómo vamos a estructurar el sistema para que soporte tanto las ventas como la parte analítica del negocio.
+Para esta actividad nuestro caso se basarÃ¡ en Ecommify es una plataforma de e-commerce multivendedor enfocada en productos tecnolÃ³gicos. Como parte de la actividad que trabajaremos a lo largo del ciclo nos enfocaremos en diseÃ±ar la base de su arquitectura de datos, para la actividad estamos trabajando con el dataset real "Brazilian E-commerce (Olist)" extraÃ­do de Kaggle. El objetivo de este informe es trazar nuestra hoja de ruta tÃ©cnica y definir cÃ³mo vamos a estructurar el sistema para que soporte tanto las ventas como la parte analÃ­tica del negocio.
 
 ## 1. Estructura general del dataset
 
-El dataset analizado corresponde al conjunto de datos Brazilian E-commerce Public Dataset by Olist, utilizado como base para el caso académico Ecommify.
+El dataset analizado corresponde al conjunto de datos Brazilian E-commerce Public Dataset by Olist, utilizado como base para el caso acadÃ©mico Ecommify.
 
-El conjunto de datos está compuesto por 9 archivos CSV relacionados con clientes, órdenes, productos, vendedores, pagos, reseñas, geolocalización y categorías de producto:
+El conjunto de datos estÃ¡ compuesto por 9 archivos CSV relacionados con clientes, Ã³rdenes, productos, vendedores, pagos, reseÃ±as, geolocalizaciÃ³n y categorÃ­as de producto:
 
-| Tabla | Descripción general |
+| Tabla | DescripciÃ³n general |
 |---|---|
-| `customers` | Información de clientes, ciudad, estado y código postal. |
-| `geolocation` | Información geográfica por prefijo de código postal. |
+| `customers` | InformaciÃ³n de clientes, ciudad, estado y cÃ³digo postal. |
+| `geolocation` | InformaciÃ³n geogrÃ¡fica por prefijo de cÃ³digo postal. |
 | `order_items` | Detalle de productos incluidos en cada orden. |
-| `order_payments` | Información de pagos asociados a las órdenes. |
-| `order_reviews` | Reseñas y calificaciones realizadas por los clientes. |
-| `orders` | Información principal de las órdenes y sus estados. |
-| `products` | Información base de productos, dimensiones y categorías. |
-| `sellers` | Información de vendedores. |
-| `category_translation` | Traducción de categorías de producto. |
+| `order_payments` | InformaciÃ³n de pagos asociados a las Ã³rdenes. |
+| `order_reviews` | ReseÃ±as y calificaciones realizadas por los clientes. |
+| `orders` | InformaciÃ³n principal de las Ã³rdenes y sus estados. |
+| `products` | InformaciÃ³n base de productos, dimensiones y categorÃ­as. |
+| `sellers` | InformaciÃ³n de vendedores. |
+| `category_translation` | TraducciÃ³n de categorÃ­as de producto. |
 
 El dataset presenta una estructura principalmente relacional, ya que existen identificadores comunes entre tablas, como `order_id`, `customer_id`, `product_id`, `seller_id` y `product_category_name`.
 
@@ -621,9 +653,9 @@ El dataset presenta una estructura principalmente relacional, ya que existen ide
 
 ## 2. Volumen de datos
 
-Al subir los archivos a Colab y hacer las relaciones entre las llaves y estructura de cada uno de los archivos, consolidamos un dataset maestro con 119,143 registros y 36 columnas. Esto nos permitió entender el contexto general de cómo se conectan los clientes, los pedidos, los pagos y los productos.
+Al subir los archivos a Colab y hacer las relaciones entre las llaves y estructura de cada uno de los archivos, consolidamos un dataset maestro con 119,143 registros y 36 columnas. Esto nos permitiÃ³ entender el contexto general de cÃ³mo se conectan los clientes, los pedidos, los pagos y los productos.
 
-Durante el EDA se identificó el volumen de registros y columnas por cada tabla:
+Durante el EDA se identificÃ³ el volumen de registros y columnas por cada tabla:
 
 | Tabla | Filas | Columnas |
 |---|---:|---:|
@@ -637,20 +669,20 @@ Durante el EDA se identificó el volumen de registros y columnas por cada tabla:
 | `sellers` | 3.095 | 4 |
 | `category_translation` | 71 | 2 |
 
-La tabla con mayor volumen es `geolocation`, con más de un millón de registros. Le siguen `order_items`, `order_payments`, `customers`, `orders` y `order_reviews`, que concentran la mayor parte de la información transaccional del e-commerce.
+La tabla con mayor volumen es `geolocation`, con mÃ¡s de un millÃ³n de registros. Le siguen `order_items`, `order_payments`, `customers`, `orders` y `order_reviews`, que concentran la mayor parte de la informaciÃ³n transaccional del e-commerce.
 
 Este volumen permite identificar dos necesidades principales:
 
-1. Un modelo transaccional estructurado para órdenes, clientes, pagos, productos y vendedores.
-2. Un modelo analítico o agregado para información geográfica, reseñas y análisis de comportamiento.
+1. Un modelo transaccional estructurado para Ã³rdenes, clientes, pagos, productos y vendedores.
+2. Un modelo analÃ­tico o agregado para informaciÃ³n geogrÃ¡fica, reseÃ±as y anÃ¡lisis de comportamiento.
 
 ---
 
-## 3. Revisión de claves y cardinalidad
+## 3. RevisiÃ³n de claves y cardinalidad
 
 Se revisaron las columnas principales de cada tabla para identificar posibles claves primarias y relaciones entre entidades.
 
-| Tabla | Columna evaluada | Filas | Valores únicos | Duplicados en la clave |
+| Tabla | Columna evaluada | Filas | Valores Ãºnicos | Duplicados en la clave |
 |---|---|---:|---:|---:|
 | `customers` | `customer_id` | 99.441 | 99.441 | 0 |
 | `orders` | `order_id` | 99.441 | 99.441 | 0 |
@@ -662,19 +694,19 @@ Se revisaron las columnas principales de cada tabla para identificar posibles cl
 | `geolocation` | `geolocation_zip_code_prefix` | 1.000.163 | 19.015 | 981.148 |
 | `category_translation` | `product_category_name` | 71 | 71 | 0 |
 
-Se identificó que `customers.customer_id`, `orders.order_id`, `products.product_id`, `sellers.seller_id` y `category_translation.product_category_name` tienen comportamiento adecuado como claves únicas.
+Se identificÃ³ que `customers.customer_id`, `orders.order_id`, `products.product_id`, `sellers.seller_id` y `category_translation.product_category_name` tienen comportamiento adecuado como claves Ãºnicas.
 
-En cambio, `order_items.order_id`, `order_payments.order_id` y `order_reviews.order_id` presentan valores repetidos. Esto no necesariamente representa un error, ya que una orden puede tener varios ítems, varios pagos o más de una relación asociada. En estos casos, se requiere analizar claves compuestas o relaciones 1:N.
+En cambio, `order_items.order_id`, `order_payments.order_id` y `order_reviews.order_id` presentan valores repetidos. Esto no necesariamente representa un error, ya que una orden puede tener varios Ã­tems, varios pagos o mÃ¡s de una relaciÃ³n asociada. En estos casos, se requiere analizar claves compuestas o relaciones 1:N.
 
-La tabla `geolocation` presenta una alta cantidad de valores repetidos en `geolocation_zip_code_prefix`, lo cual indica que esta tabla requiere limpieza, agregación o consolidación antes de ser utilizada en el modelo final.
+La tabla `geolocation` presenta una alta cantidad de valores repetidos en `geolocation_zip_code_prefix`, lo cual indica que esta tabla requiere limpieza, agregaciÃ³n o consolidaciÃ³n antes de ser utilizada en el modelo final.
 
 ---
 
 ## 4. Relaciones principales identificadas
 
-Se validaron las relaciones principales entre tablas mediante comparación de valores entre columnas origen y destino.
+Se validaron las relaciones principales entre tablas mediante comparaciÃ³n de valores entre columnas origen y destino.
 
-| Tabla origen | Columna origen | Tabla destino | Columna destino | Valores sin relación |
+| Tabla origen | Columna origen | Tabla destino | Columna destino | Valores sin relaciÃ³n |
 |---|---|---|---|---:|
 | `orders` | `customer_id` | `customers` | `customer_id` | 0 |
 | `order_items` | `order_id` | `orders` | `order_id` | 0 |
@@ -684,15 +716,15 @@ Se validaron las relaciones principales entre tablas mediante comparación de va
 | `order_items` | `seller_id` | `sellers` | `seller_id` | 0 |
 | `products` | `product_category_name` | `category_translation` | `product_category_name` | 2 |
 
-Las relaciones principales entre órdenes, clientes, pagos, productos y vendedores no presentan valores huérfanos, lo cual evidencia una estructura consistente para un modelo relacional.
+Las relaciones principales entre Ã³rdenes, clientes, pagos, productos y vendedores no presentan valores huÃ©rfanos, lo cual evidencia una estructura consistente para un modelo relacional.
 
-La única relación con diferencias se encuentra entre `products.product_category_name` y `category_translation.product_category_name`, donde se identificaron 2 valores sin relación. Esto debe revisarse en la fase de limpieza o transformación de datos.
+La Ãºnica relaciÃ³n con diferencias se encuentra entre `products.product_category_name` y `category_translation.product_category_name`, donde se identificaron 2 valores sin relaciÃ³n. Esto debe revisarse en la fase de limpieza o transformaciÃ³n de datos.
 
 ---
 
 ## 5. Calidad de datos y valores nulos
 
-Se identificaron valores nulos en columnas específicas del dataset:
+Se identificaron valores nulos en columnas especÃ­ficas del dataset:
 
 | Tabla | Columna | Nulos | Porcentaje |
 |---|---|---:|---:|
@@ -710,17 +742,17 @@ Se identificaron valores nulos en columnas específicas del dataset:
 | `products` | `product_height_cm` | 2 | 0,01% |
 | `products` | `product_width_cm` | 2 | 0,01% |
 
-Los valores nulos más relevantes se encuentran en `order_reviews`, especialmente en `review_comment_title` y `review_comment_message`. Esto puede considerarse normal dentro del negocio, ya que no todos los clientes dejan comentarios escritos aunque sí puedan registrar una calificación.
+Los valores nulos mÃ¡s relevantes se encuentran en `order_reviews`, especialmente en `review_comment_title` y `review_comment_message`. Esto puede considerarse normal dentro del negocio, ya que no todos los clientes dejan comentarios escritos aunque sÃ­ puedan registrar una calificaciÃ³n.
 
-En la tabla `orders`, los nulos en fechas de entrega o aprobación pueden estar asociados a órdenes canceladas, no entregadas o con estados incompletos. Estos registros requieren análisis adicional antes de ser utilizados para métricas logísticas.
+En la tabla `orders`, los nulos en fechas de entrega o aprobaciÃ³n pueden estar asociados a Ã³rdenes canceladas, no entregadas o con estados incompletos. Estos registros requieren anÃ¡lisis adicional antes de ser utilizados para mÃ©tricas logÃ­sticas.
 
-En la tabla `products`, los nulos están asociados principalmente a categoría, descripción, fotos y dimensiones. Estos campos deben ser revisados antes de construir un catálogo enriquecido.
+En la tabla `products`, los nulos estÃ¡n asociados principalmente a categorÃ­a, descripciÃ³n, fotos y dimensiones. Estos campos deben ser revisados antes de construir un catÃ¡logo enriquecido.
 
 ---
 
 ## 6. Duplicados
 
-Se realizó una validación de registros duplicados completos por tabla.
+Se realizÃ³ una validaciÃ³n de registros duplicados completos por tabla.
 
 | Tabla | Duplicados completos |
 |---|---:|
@@ -734,38 +766,38 @@ Se realizó una validación de registros duplicados completos por tabla.
 | `sellers` | 0 |
 | `category_translation` | 0 |
 
-La única tabla con duplicados completos es `geolocation`, con 261.831 registros duplicados. Esto indica que la información geográfica debe ser depurada o agregada antes de incorporarse al modelo final.
+La Ãºnica tabla con duplicados completos es `geolocation`, con 261.831 registros duplicados. Esto indica que la informaciÃ³n geogrÃ¡fica debe ser depurada o agregada antes de incorporarse al modelo final.
 
-Para efectos de arquitectura, `geolocation` puede tratarse como una fuente de datos analítica o de referencia, no necesariamente como una tabla transaccional central.
+Para efectos de arquitectura, `geolocation` puede tratarse como una fuente de datos analÃ­tica o de referencia, no necesariamente como una tabla transaccional central.
 
 ---
 
-## 7. Distribución temporal
+## 7. DistribuciÃ³n temporal
 
-La distribución temporal de órdenes se analizó a partir de la columna `order_purchase_timestamp`.
+La distribuciÃ³n temporal de Ã³rdenes se analizÃ³ a partir de la columna `order_purchase_timestamp`.
 
-Esta variable permite observar el comportamiento de las compras en el tiempo y puede ser útil para:
+Esta variable permite observar el comportamiento de las compras en el tiempo y puede ser Ãºtil para:
 
 - Analizar estacionalidad de ventas.
 - Identificar periodos de mayor volumen transaccional.
-- Diseñar estrategias de particionamiento por fecha en PostgreSQL.
-- Definir índices sobre columnas temporales.
-- Construir indicadores mensuales para análisis en MongoDB o dashboards.
+- DiseÃ±ar estrategias de particionamiento por fecha en PostgreSQL.
+- Definir Ã­ndices sobre columnas temporales.
+- Construir indicadores mensuales para anÃ¡lisis en MongoDB o dashboards.
 
-Desde el punto de vista del diseño de bases de datos, las columnas de fecha de la tabla `orders` son relevantes para consultas frecuentes como:
+Desde el punto de vista del diseÃ±o de bases de datos, las columnas de fecha de la tabla `orders` son relevantes para consultas frecuentes como:
 
-- Órdenes por mes.
-- Órdenes entregadas vs no entregadas.
+- Ã“rdenes por mes.
+- Ã“rdenes entregadas vs no entregadas.
 - Tiempo entre compra y entrega.
 - Cumplimiento de fecha estimada de entrega.
 
 ---
 
-## 8. Distribución geográfica
+## 8. DistribuciÃ³n geogrÃ¡fica
 
-Se analizaron distribuciones geográficas de clientes, vendedores y órdenes por estado.
+Se analizaron distribuciones geogrÃ¡ficas de clientes, vendedores y Ã³rdenes por estado.
 
-Las columnas más relevantes para este análisis son:
+Las columnas mÃ¡s relevantes para este anÃ¡lisis son:
 
 - `customer_state`
 - `customer_city`
@@ -775,15 +807,15 @@ Las columnas más relevantes para este análisis son:
 - `seller_zip_code_prefix`
 - `geolocation_zip_code_prefix`
 
-La información geográfica permite identificar concentración de clientes, vendedores y órdenes por región. Este tipo de información es útil para análisis de cobertura, logística, comportamiento regional y segmentación comercial.
+La informaciÃ³n geogrÃ¡fica permite identificar concentraciÃ³n de clientes, vendedores y Ã³rdenes por regiÃ³n. Este tipo de informaciÃ³n es Ãºtil para anÃ¡lisis de cobertura, logÃ­stica, comportamiento regional y segmentaciÃ³n comercial.
 
-Dado que `geolocation` es la tabla de mayor volumen y presenta duplicados, se recomienda usarla como fuente para construir agregaciones geográficas, en lugar de usarla directamente como una tabla operacional sin limpieza previa.
+Dado que `geolocation` es la tabla de mayor volumen y presenta duplicados, se recomienda usarla como fuente para construir agregaciones geogrÃ¡ficas, en lugar de usarla directamente como una tabla operacional sin limpieza previa.
 
 ---
 
 ## 9. Vista integrada `orders_full`
 
-Se construyó una vista integrada denominada `orders_full`, uniendo las tablas principales:
+Se construyÃ³ una vista integrada denominada `orders_full`, uniendo las tablas principales:
 
 - `orders`
 - `customers`
@@ -793,50 +825,50 @@ Se construyó una vista integrada denominada `orders_full`, uniendo las tablas p
 - `order_payments`
 - `order_reviews`
 
-Esta vista permite observar una versión denormalizada del proceso de compra, integrando información de cliente, orden, producto, vendedor, pago y reseña.
+Esta vista permite observar una versiÃ³n denormalizada del proceso de compra, integrando informaciÃ³n de cliente, orden, producto, vendedor, pago y reseÃ±a.
 
-La vista `orders_full` es útil para análisis exploratorio, pero no debería ser el modelo físico principal de una base transaccional, ya que puede generar duplicidad de datos y redundancia. Sin embargo, puede ser una base útil para construir documentos analíticos en MongoDB o datasets preparados para visualización.
+La vista `orders_full` es Ãºtil para anÃ¡lisis exploratorio, pero no deberÃ­a ser el modelo fÃ­sico principal de una base transaccional, ya que puede generar duplicidad de datos y redundancia. Sin embargo, puede ser una base Ãºtil para construir documentos analÃ­ticos en MongoDB o datasets preparados para visualizaciÃ³n.
 
 ---
 
-## 10. Implicaciones para el diseño de base de datos
+## 10. Implicaciones para el diseÃ±o de base de datos
 
 El EDA evidencia que el dataset tiene una estructura relacional clara para las entidades centrales del negocio:
 
 - Clientes.
-- Órdenes.
-- Ítems de orden.
+- Ã“rdenes.
+- Ãtems de orden.
 - Pagos.
 - Productos.
 - Vendedores.
-- Categorías.
+- CategorÃ­as.
 
 Estas entidades presentan relaciones fuertes y requieren integridad referencial, por lo que son candidatas naturales para PostgreSQL.
 
-Por otro lado, también se identifican datos con características analíticas o flexibles:
+Por otro lado, tambiÃ©n se identifican datos con caracterÃ­sticas analÃ­ticas o flexibles:
 
-- Reseñas con campos opcionales y texto libre.
-- Catálogo de productos enriquecido.
-- Datos geográficos de alto volumen.
-- Vistas agregadas por cliente, producto, vendedor o región.
-- Indicadores para análisis de comportamiento de compra.
+- ReseÃ±as con campos opcionales y texto libre.
+- CatÃ¡logo de productos enriquecido.
+- Datos geogrÃ¡ficos de alto volumen.
+- Vistas agregadas por cliente, producto, vendedor o regiÃ³n.
+- Indicadores para anÃ¡lisis de comportamiento de compra.
 
 Estos datos pueden modelarse como documentos o estructuras desnormalizadas en MongoDB.
 
 ---
 
-## 11. Decisión arquitectónica preliminar
+## 11. DecisiÃ³n arquitectÃ³nica preliminar
 
-A partir del EDA, se propone una arquitectura híbrida transaccional-analítica basada en PostgreSQL y MongoDB.
+A partir del EDA, se propone una arquitectura hÃ­brida transaccional-analÃ­tica basada en PostgreSQL y MongoDB.
 
-PostgreSQL será utilizado como base de datos principal para el módulo transaccional, almacenando entidades estructuradas como clientes, órdenes, pagos, productos, vendedores e ítems de pedido. Esta decisión se justifica porque estas entidades presentan relaciones claras, no evidencian valores huérfanos en sus relaciones principales y requieren consistencia en operaciones críticas como la creación de órdenes y el registro de pagos.
+PostgreSQL serÃ¡ utilizado como base de datos principal para el mÃ³dulo transaccional, almacenando entidades estructuradas como clientes, Ã³rdenes, pagos, productos, vendedores e Ã­tems de pedido. Esta decisiÃ³n se justifica porque estas entidades presentan relaciones claras, no evidencian valores huÃ©rfanos en sus relaciones principales y requieren consistencia en operaciones crÃ­ticas como la creaciÃ³n de Ã³rdenes y el registro de pagos.
 
-MongoDB será utilizado como base de datos complementaria para el módulo analítico, almacenando documentos enriquecidos de catálogo, reseñas, comportamiento de compra y análisis geográfico. Esta decisión se justifica porque estos datos pueden consultarse de forma flexible, agregada y orientada a lectura, sin depender de múltiples JOIN entre tablas.
+MongoDB serÃ¡ utilizado como base de datos complementaria para el mÃ³dulo analÃ­tico, almacenando documentos enriquecidos de catÃ¡logo, reseÃ±as, comportamiento de compra y anÃ¡lisis geogrÃ¡fico. Esta decisiÃ³n se justifica porque estos datos pueden consultarse de forma flexible, agregada y orientada a lectura, sin depender de mÃºltiples JOIN entre tablas.
 
 La arquitectura permite separar responsabilidades:
 
 - PostgreSQL garantiza consistencia, integridad referencial y control transaccional.
-- MongoDB permite flexibilidad, consultas analíticas, documentos enriquecidos y exploración de datos.
+- MongoDB permite flexibilidad, consultas analÃ­ticas, documentos enriquecidos y exploraciÃ³n de datos.
 
 Ajuste derivado de la Etapa 1: PostgreSQL sigue siendo la fuente de verdad relacional, pero se incorporan tipos avanzados de forma controlada. Se aprueba agregar `products.specifications JSONB`, `products.photo_urls TEXT[]` y `orders.lifecycle JSONB`. Se mantiene `order_payments` como tabla relacional, se descarta `hstore`, se rechaza el modulo de promociones con `TSTZRANGE` para el alcance inicial y no se usara composite type para dimensiones porque las dimensiones se conservan como columnas simples.
 
@@ -845,25 +877,25 @@ Ajuste derivado de la Etapa 1: PostgreSQL sigue siendo la fuente de verdad relac
 ![image.png](assets/image_png.png)
 ---
 
-## 12. Matriz de decisión PostgreSQL vs MongoDB
+## 12. Matriz de decisiÃ³n PostgreSQL vs MongoDB
 
-| Entidad / elemento | Decisión en PostgreSQL | Decisión en MongoDB | Justificación / decisión aplicada |
+| Entidad / elemento | DecisiÃ³n en PostgreSQL | DecisiÃ³n en MongoDB | JustificaciÃ³n / decisiÃ³n aplicada |
 |---|---|---|---|
-| `customers` | Tabla base normalizada y fuente de verdad para clientes. | Resumen derivado en `customer_profiles`. | Entidad estructurada relacionada con órdenes; MongoDB solo consolida métricas analíticas de comportamiento. |
-| `orders` | Tabla transaccional principal, con `order_purchase_timestamp NOT NULL`, `orders.lifecycle JSONB`, particionamiento mensual por fecha y triggers de `updated_at`. | Timeline o resumen derivado de orden en documentos analíticos. | Núcleo OLTP del negocio; MongoDB no reemplaza la integridad ni el particionamiento, solo facilita lectura y dashboards. |
-| `order_items` | Tabla relacional que conecta orden, producto y vendedor, con precios y fletes validados. | Agregados de ventas por producto, categoría o vendedor. | Se mantiene normalizada para integridad; puede alimentar métricas OLAP y documentos derivados. |
+| `customers` | Tabla base normalizada y fuente de verdad para clientes. | Resumen derivado en `customer_profiles`. | Entidad estructurada relacionada con Ã³rdenes; MongoDB solo consolida mÃ©tricas analÃ­ticas de comportamiento. |
+| `orders` | Tabla transaccional principal, con `order_purchase_timestamp NOT NULL`, `orders.lifecycle JSONB`, particionamiento mensual por fecha y triggers de `updated_at`. | Timeline o resumen derivado de orden en documentos analÃ­ticos. | NÃºcleo OLTP del negocio; MongoDB no reemplaza la integridad ni el particionamiento, solo facilita lectura y dashboards. |
+| `order_items` | Tabla relacional que conecta orden, producto y vendedor, con precios y fletes validados. | Agregados de ventas por producto, categorÃ­a o vendedor. | Se mantiene normalizada para integridad; puede alimentar mÃ©tricas OLAP y documentos derivados. |
 | `order_payments` | Tabla relacional con `payment_sk` como PK tecnica, `UNIQUE (order_sk, payment_sequential)` y `CHECK (payment_value >= 0)`. | Solo resumen derivado de pagos. | Los pagos requieren consistencia transaccional; no se mueven a `JSONB` ni a documento como fuente principal. |
-| `products` | Tabla base con categoría, dimensiones como columnas, `specifications JSONB` y `photo_urls TEXT[]`. | Catálogo enriquecido `product_catalog` con `specifications`, `photos`, `dimensions`, reseñas y métricas. | PostgreSQL conserva el producto maestro; MongoDB mejora lecturas de catálogo enriquecido sin romper normalización. |
-| `category_translation` | Tabla de referencia normalizada para traducir categorías. | Campo embebido o derivado dentro de `product_catalog`. | Es pequeña, estable y útil para FK en PostgreSQL; en MongoDB solo se replica para consulta. |
-| `sellers` | Tabla base normalizada de vendedores. | Resumen derivado en `seller_performance`. | Entidad estructurada con relaciones transaccionales; MongoDB consolida desempeño, ventas y métricas. |
-| `order_reviews` | Tabla relacional asociada a órdenes, con validación de `review_score BETWEEN 1 AND 5`. | Documentos enriquecidos de reseñas y feedback. | El texto libre y campos opcionales justifican una capa documental derivada para análisis de experiencia. |
-| `geolocation` | Tabla limpia o consolidada para referencia geográfica. | Colección `geo_analytics` con agregados por ciudad, estado o región. | El alto volumen y duplicados requieren limpieza; MongoDB se usa para lectura geográfica agregada. |
-| `orders_full` | No se adopta como modelo físico transaccional. | Puede alimentar documentos analíticos o datasets de dashboard. | Es útil como vista denormalizada de análisis, pero no debe reemplazar el modelo normalizado. |
-| Promociones con rangos | Fuera del alcance inicial. | Fuera del alcance inicial. | Se rechaza para esta versión del diseño; los tipos `range` quedan evaluados pero no implementados. |
+| `products` | Tabla base con categorÃ­a, dimensiones como columnas, `specifications JSONB` y `photo_urls TEXT[]`. | CatÃ¡logo enriquecido `product_catalog` con `specifications`, `photos`, `dimensions`, reseÃ±as y mÃ©tricas. | PostgreSQL conserva el producto maestro; MongoDB mejora lecturas de catÃ¡logo enriquecido sin romper normalizaciÃ³n. |
+| `category_translation` | Tabla de referencia normalizada para traducir categorÃ­as. | Campo embebido o derivado dentro de `product_catalog`. | Es pequeÃ±a, estable y Ãºtil para FK en PostgreSQL; en MongoDB solo se replica para consulta. |
+| `sellers` | Tabla base normalizada de vendedores. | Resumen derivado en `seller_performance`. | Entidad estructurada con relaciones transaccionales; MongoDB consolida desempeÃ±o, ventas y mÃ©tricas. |
+| `order_reviews` | Tabla relacional asociada a Ã³rdenes, con validaciÃ³n de `review_score BETWEEN 1 AND 5`. | Documentos enriquecidos de reseÃ±as y feedback. | El texto libre y campos opcionales justifican una capa documental derivada para anÃ¡lisis de experiencia. |
+| `geolocation` | Tabla limpia o consolidada para referencia geogrÃ¡fica. | ColecciÃ³n `geo_analytics` con agregados por ciudad, estado o regiÃ³n. | El alto volumen y duplicados requieren limpieza; MongoDB se usa para lectura geogrÃ¡fica agregada. |
+| `orders_full` | No se adopta como modelo fÃ­sico transaccional. | Puede alimentar documentos analÃ­ticos o datasets de dashboard. | Es Ãºtil como vista denormalizada de anÃ¡lisis, pero no debe reemplazar el modelo normalizado. |
+| Promociones con rangos | Fuera del alcance inicial. | Fuera del alcance inicial. | Se rechaza para esta versiÃ³n del diseÃ±o; los tipos `range` quedan evaluados pero no implementados. |
 | `hstore` | No se usa. | Sin impacto. | Se descarta porque `JSONB` cubre mejor los casos flexibles previstos. |
-| Composite type para dimensiones | No se usa; dimensiones quedan como columnas numéricas. | Puede representarse como subdocumento `dimensions` solo de lectura. | Se rechaza como decisión inicial para mantener claridad, validación simple y consultas directas. |
-| Vistas materializadas | `mv_sales_by_category_monthly`, `mv_customer_segments`, `mv_seller_performance_monthly`, `mv_geo_sales_summary`. | Pueden alimentar colecciones analíticas derivadas. | Aprobadas para dashboards y consultas OLAP sin afectar las tablas OLTP. |
-| Jobs de mantenimiento | `VACUUM/ANALYZE`, refresh de MVs, creación mensual de particiones y revisión de índices. | Sincronización o refresh de documentos derivados. | Aprobado como estrategia operativa para sostener rendimiento y escalabilidad. |
+| Composite type para dimensiones | No se usa; dimensiones quedan como columnas numÃ©ricas. | Puede representarse como subdocumento `dimensions` solo de lectura. | Se rechaza como decisiÃ³n inicial para mantener claridad, validaciÃ³n simple y consultas directas. |
+| Vistas materializadas | `mv_sales_by_category_monthly`, `mv_customer_segments`, `mv_seller_performance_monthly`, `mv_geo_sales_summary`. | Pueden alimentar colecciones analÃ­ticas derivadas. | Aprobadas para dashboards y consultas OLAP sin afectar las tablas OLTP. |
+| Jobs de mantenimiento | `VACUUM/ANALYZE`, refresh de MVs, creaciÃ³n mensual de particiones y revisiÃ³n de Ã­ndices. | SincronizaciÃ³n o refresh de documentos derivados. | Aprobado como estrategia operativa para sostener rendimiento y escalabilidad. |
 
 
 ---
@@ -888,15 +920,15 @@ El criterio CAP se aplica distinguiendo la fuente de verdad transaccional de las
 
 ---
 
-## 13. Conclusión técnica inicial
+## 13. ConclusiÃ³n tÃ©cnica inicial
 
-El EDA permitió comprender la estructura, volumen, relaciones y calidad de los datos del dataset Olist utilizado para el caso Ecommify.
+El EDA permitiÃ³ comprender la estructura, volumen, relaciones y calidad de los datos del dataset Olist utilizado para el caso Ecommify.
 
-Los resultados muestran que el dataset tiene una base relacional sólida para representar procesos transaccionales como clientes, órdenes, pagos, productos y vendedores. Las principales relaciones entre estas entidades no presentan valores huérfanos, lo cual facilita el diseño de un modelo relacional normalizado en PostgreSQL.
+Los resultados muestran que el dataset tiene una base relacional sÃ³lida para representar procesos transaccionales como clientes, Ã³rdenes, pagos, productos y vendedores. Las principales relaciones entre estas entidades no presentan valores huÃ©rfanos, lo cual facilita el diseÃ±o de un modelo relacional normalizado en PostgreSQL.
 
-También se identificaron componentes con orientación analítica o flexible, como reseñas, catálogo enriquecido, geolocalización y vistas integradas de órdenes. Estos elementos pueden beneficiarse de un modelo documental en MongoDB, especialmente para consultas agregadas, dashboards y análisis exploratorio.
+TambiÃ©n se identificaron componentes con orientaciÃ³n analÃ­tica o flexible, como reseÃ±as, catÃ¡logo enriquecido, geolocalizaciÃ³n y vistas integradas de Ã³rdenes. Estos elementos pueden beneficiarse de un modelo documental en MongoDB, especialmente para consultas agregadas, dashboards y anÃ¡lisis exploratorio.
 
-Por lo tanto, el EDA respalda la selección de una arquitectura híbrida transaccional-analítica para Ecommify, en la cual PostgreSQL actúa como fuente principal de verdad para los datos operacionales y MongoDB como base complementaria para análisis, documentos enriquecidos y consultas flexibles.
+Por lo tanto, el EDA respalda la selecciÃ³n de una arquitectura hÃ­brida transaccional-analÃ­tica para Ecommify, en la cual PostgreSQL actÃºa como fuente principal de verdad para los datos operacionales y MongoDB como base complementaria para anÃ¡lisis, documentos enriquecidos y consultas flexibles.
 
 
 
@@ -905,7 +937,7 @@ Por lo tanto, el EDA respalda la selección de una arquitectura híbrida transac
 
 ## Primera Forma Normal - 1FN
 
-La Primera Forma Normal exige que cada celda contenga un único valor atómico. En el dataset de Olist, la tabla `order_items` permite representar una orden con múltiples productos mediante filas independientes, evitando almacenar listas de productos dentro de una misma celda.
+La Primera Forma Normal exige que cada celda contenga un Ãºnico valor atÃ³mico. En el dataset de Olist, la tabla `order_items` permite representar una orden con mÃºltiples productos mediante filas independientes, evitando almacenar listas de productos dentro de una misma celda.
 
 Por ejemplo, una orden con varios productos no se almacena como una lista en una columna, sino como varios registros asociados al mismo `order_id`. Esto permite mantener la atomicidad de los datos y cumplir con 1FN.
 
@@ -917,15 +949,15 @@ Por ejemplo, una orden con varios productos no se almacena como una lista en una
 
 La Segunda Forma Normal exige que una tabla cumpla 1FN y que todos sus atributos no clave dependan de la clave completa. Esta forma normal es especialmente importante cuando existe una clave compuesta.
 
-Para el análisis se tomó como referencia la vista denormalizada `orders_full`, la cual integra información de órdenes, clientes, productos, vendedores, pagos y reseñas.
+Para el anÃ¡lisis se tomÃ³ como referencia la vista denormalizada `orders_full`, la cual integra informaciÃ³n de Ã³rdenes, clientes, productos, vendedores, pagos y reseÃ±as.
 
-En esta vista, una fila puede estar determinada por una combinación de columnas como `order_id`, `order_item_id`, `payment_sequential` y `review_id`, dependiendo del resultado de las uniones realizadas. Sin embargo, varios atributos no dependen de toda esa combinación, sino de una entidad específica.
+En esta vista, una fila puede estar determinada por una combinaciÃ³n de columnas como `order_id`, `order_item_id`, `payment_sequential` y `review_id`, dependiendo del resultado de las uniones realizadas. Sin embargo, varios atributos no dependen de toda esa combinaciÃ³n, sino de una entidad especÃ­fica.
 
-Por ejemplo, los datos de estado y fechas de la orden dependen de `order_id`; los datos de ciudad y estado del cliente dependen de `customer_id`; los datos de categoría, peso y dimensiones dependen de `product_id`; los datos de ubicación del vendedor dependen de `seller_id`; los datos de pago dependen de `order_id` y `payment_sequential`; y los datos de reseña dependen de `review_id`.
+Por ejemplo, los datos de estado y fechas de la orden dependen de `order_id`; los datos de ciudad y estado del cliente dependen de `customer_id`; los datos de categorÃ­a, peso y dimensiones dependen de `product_id`; los datos de ubicaciÃ³n del vendedor dependen de `seller_id`; los datos de pago dependen de `order_id` y `payment_sequential`; y los datos de reseÃ±a dependen de `review_id`.
 
 Esto evidencia una ruptura de 2FN en `orders_full`, porque la tabla contiene atributos que no dependen de la clave completa de la fila integrada, sino de claves parciales o entidades individuales.
 
-Para corregir esta situación, el modelo debe mantenerse separado en tablas como `orders`, `customers`, `order_items`, `products`, `sellers`, `order_payments` y `order_reviews`. De esta forma, cada tabla conserva únicamente los atributos que dependen de su propia clave.
+Para corregir esta situaciÃ³n, el modelo debe mantenerse separado en tablas como `orders`, `customers`, `order_items`, `products`, `sellers`, `order_payments` y `order_reviews`. De esta forma, cada tabla conserva Ãºnicamente los atributos que dependen de su propia clave.
 
 ---
 
@@ -933,32 +965,32 @@ Para corregir esta situación, el modelo debe mantenerse separado en tablas como
 
 La Tercera Forma Normal exige que una tabla cumpla 2FN y que no existan dependencias transitivas. Una dependencia transitiva ocurre cuando un atributo no clave depende de otro atributo no clave, en lugar de depender directamente de la clave principal.
 
-Para el análisis se tomó como referencia la vista denormalizada `orders_full`, la cual integra información de órdenes, clientes, productos, vendedores, pagos y reseñas.
+Para el anÃ¡lisis se tomÃ³ como referencia la vista denormalizada `orders_full`, la cual integra informaciÃ³n de Ã³rdenes, clientes, productos, vendedores, pagos y reseÃ±as.
 
-En esta vista se identifican posibles dependencias transitivas. Por ejemplo, una orden referencia un cliente mediante `customer_id`, pero los datos como `customer_city` y `customer_state` pertenecen al cliente y no directamente a la orden. De manera similar, un ítem de orden referencia un producto mediante `product_id`, pero atributos como `product_category_name`, peso y dimensiones pertenecen al producto. También ocurre con el vendedor, donde `seller_city` y `seller_state` dependen de `seller_id`.
+En esta vista se identifican posibles dependencias transitivas. Por ejemplo, una orden referencia un cliente mediante `customer_id`, pero los datos como `customer_city` y `customer_state` pertenecen al cliente y no directamente a la orden. De manera similar, un Ã­tem de orden referencia un producto mediante `product_id`, pero atributos como `product_category_name`, peso y dimensiones pertenecen al producto. TambiÃ©n ocurre con el vendedor, donde `seller_city` y `seller_state` dependen de `seller_id`.
 
-Adicionalmente, al integrar la tabla `category_translation`, se observa la dependencia `product_id → product_category_name → product_category_name_english`. Esto significa que la traducción de la categoría depende de la categoría del producto, no directamente del producto ni de la orden.
+Adicionalmente, al integrar la tabla `category_translation`, se observa la dependencia `product_id â†’ product_category_name â†’ product_category_name_english`. Esto significa que la traducciÃ³n de la categorÃ­a depende de la categorÃ­a del producto, no directamente del producto ni de la orden.
 
-| Dependencia transitiva | Explicación | Corrección |
+| Dependencia transitiva | ExplicaciÃ³n | CorrecciÃ³n |
 |---|---|---|
-| `order_id → customer_id → customer_city/customer_state` | La ubicación pertenece al cliente, no directamente a la orden. | Mantener `customers` como tabla separada. |
-| `order_id + order_item_id → product_id → product_category_name` | La categoría pertenece al producto, no al ítem de orden. | Mantener `products` como tabla separada. |
-| `product_id → product_category_name → product_category_name_english` | La traducción depende de la categoría. | Mantener `category_translation` como tabla de referencia. |
-| `order_id + order_item_id → seller_id → seller_city/seller_state` | La ubicación pertenece al vendedor. | Mantener `sellers` como tabla separada. |
-| `customer_zip_code_prefix → customer_city/customer_state` | La ciudad y estado pueden depender del código postal. | Evaluar limpieza y consolidación de `geolocation`. |
-| `seller_zip_code_prefix → seller_city/seller_state` | La ciudad y estado pueden depender del código postal del vendedor. | Evaluar limpieza y consolidación de `geolocation`. |
+| `order_id â†’ customer_id â†’ customer_city/customer_state` | La ubicaciÃ³n pertenece al cliente, no directamente a la orden. | Mantener `customers` como tabla separada. |
+| `order_id + order_item_id â†’ product_id â†’ product_category_name` | La categorÃ­a pertenece al producto, no al Ã­tem de orden. | Mantener `products` como tabla separada. |
+| `product_id â†’ product_category_name â†’ product_category_name_english` | La traducciÃ³n depende de la categorÃ­a. | Mantener `category_translation` como tabla de referencia. |
+| `order_id + order_item_id â†’ seller_id â†’ seller_city/seller_state` | La ubicaciÃ³n pertenece al vendedor. | Mantener `sellers` como tabla separada. |
+| `customer_zip_code_prefix â†’ customer_city/customer_state` | La ciudad y estado pueden depender del cÃ³digo postal. | Evaluar limpieza y consolidaciÃ³n de `geolocation`. |
+| `seller_zip_code_prefix â†’ seller_city/seller_state` | La ciudad y estado pueden depender del cÃ³digo postal del vendedor. | Evaluar limpieza y consolidaciÃ³n de `geolocation`. |
 
 Por lo anterior, `orders_full` no debe utilizarse como tabla transaccional final, ya que concentra atributos que dependen indirectamente de otras entidades. Para cumplir 3FN en el modelo relacional, se deben mantener separadas las tablas `orders`, `customers`, `order_items`, `products`, `sellers`, `order_payments`, `order_reviews` y `category_translation`.
 
-La tabla `geolocation` debe analizarse con especial cuidado, ya que presenta alto volumen y duplicados. Por tanto, antes de usarla como referencia geográfica, se recomienda realizar limpieza, deduplicación o agregación.
+La tabla `geolocation` debe analizarse con especial cuidado, ya que presenta alto volumen y duplicados. Por tanto, antes de usarla como referencia geogrÃ¡fica, se recomienda realizar limpieza, deduplicaciÃ³n o agregaciÃ³n.
 
 ---
 
 ## 5. Esquema normalizado final
 
-A partir del análisis de 1FN, 2FN y 3FN, se propone mantener un esquema relacional normalizado para el componente transaccional de Ecommify. El objetivo es separar correctamente las entidades principales del negocio y evitar que una tabla integrada como `orders_full` sea usada como modelo transaccional final.
+A partir del anÃ¡lisis de 1FN, 2FN y 3FN, se propone mantener un esquema relacional normalizado para el componente transaccional de Ecommify. El objetivo es separar correctamente las entidades principales del negocio y evitar que una tabla integrada como `orders_full` sea usada como modelo transaccional final.
 
-La vista `orders_full` es útil para análisis exploratorio, pero no debe ser la estructura principal de almacenamiento porque mezcla datos de órdenes, clientes, productos, vendedores, pagos y reseñas. Esto genera redundancia y dependencias incorrectas entre atributos.
+La vista `orders_full` es Ãºtil para anÃ¡lisis exploratorio, pero no debe ser la estructura principal de almacenamiento porque mezcla datos de Ã³rdenes, clientes, productos, vendedores, pagos y reseÃ±as. Esto genera redundancia y dependencias incorrectas entre atributos.
 
 El esquema normalizado propuesto mantiene las siguientes entidades:
 
@@ -970,7 +1002,7 @@ El esquema normalizado propuesto mantiene las siguientes entidades:
 - `order_payments`
 - `order_reviews`
 - `category_translation`
-- `geolocation`, previa limpieza o consolidación
+- `geolocation`, previa limpieza o consolidaciÃ³n
 
 Ajuste aplicado: el esquema sigue normalizado y adopta llaves tecnicas internas `BIGINT IDENTITY` para PK/FK, manteniendo los IDs Olist como `TEXT UNIQUE`. Ademas, se agregan columnas avanzadas controladas. En `products` se incorporan `specifications JSONB` y `photo_urls TEXT[]`; en `orders` se incorpora `lifecycle JSONB`. Estas columnas no reemplazan claves, relaciones ni atributos medibles principales. Los pagos permanecen en `order_payments` y las dimensiones del producto siguen como columnas numericas.
 
@@ -979,11 +1011,11 @@ Ajuste aplicado: el esquema sigue normalizado y adopta llaves tecnicas internas 
 
 Nota: en el diagrama Mermaid algunos atributos se simplifican para evitar errores de renderizado. Las claves compuestas y foraneas completas se mantienen documentadas en las tablas de claves primarias y foraneas anteriores.
 
-## 6. Identificación de claves primarias y foráneas
+## 6. IdentificaciÃ³n de claves primarias y forÃ¡neas
 
 ## Claves primarias propuestas
 
-| Tabla | Clave primaria tecnica | Identificador Olist / natural | Justificación |
+| Tabla | Clave primaria tecnica | Identificador Olist / natural | JustificaciÃ³n |
 |---|---|---|---|
 | `customers` | `customer_sk` | `customer_id TEXT UNIQUE` | La PK interna optimiza relaciones; `customer_id` conserva trazabilidad Olist. |
 | `orders` | `order_sk` | `order_id TEXT UNIQUE` | La orden se relaciona internamente por `order_sk`; `order_id` permite busqueda y auditoria. |
@@ -995,9 +1027,9 @@ Nota: en el diagrama Mermaid algunos atributos se simplifican para evitar errore
 | `category_translation` | `category_sk` | `product_category_name TEXT UNIQUE` | La categoria original queda como clave natural unica. |
 | `geolocation_clean` | `geolocation_sk` | `geolocation_zip_code_prefix` indexado | La geolocalizacion requiere limpieza; el prefijo postal no se usa como PK fisica. |
 
-## Claves foráneas propuestas
+## Claves forÃ¡neas propuestas
 
-| Tabla origen | Columna FK interna | Tabla destino | Columna destino | Relación |
+| Tabla origen | Columna FK interna | Tabla destino | Columna destino | RelaciÃ³n |
 |---|---|---|---|---|
 | `orders` | `customer_sk` | `customers` | `customer_sk` | Un cliente puede tener muchas ordenes. |
 | `products` | `category_sk` | `category_translation` | `category_sk` | Una categoria puede clasificar muchos productos. |
@@ -1008,88 +1040,88 @@ Nota: en el diagrama Mermaid algunos atributos se simplifican para evitar errore
 | `order_reviews` | `order_sk` | `orders` | `order_sk` | Una orden puede tener una o varias resenas. |
 
 Nota: las asociaciones con `geolocation_clean` se mantienen como relacion logica por prefijo postal, ciudad y estado hasta completar limpieza y deduplicacion geografica.
-## 7. Análisis de trade-offs de alta normalización
+## 7. AnÃ¡lisis de trade-offs de alta normalizaciÃ³n
 
-La normalización permite organizar los datos, reducir redundancia y mejorar la integridad del modelo. Sin embargo, no siempre debe aplicarse de forma extrema, ya que el diseño debe responder al problema de negocio y a los patrones de consulta esperados.
+La normalizaciÃ³n permite organizar los datos, reducir redundancia y mejorar la integridad del modelo. Sin embargo, no siempre debe aplicarse de forma extrema, ya que el diseÃ±o debe responder al problema de negocio y a los patrones de consulta esperados.
 
-## Ventajas de una alta normalización
+## Ventajas de una alta normalizaciÃ³n
 
-| Ventaja | Explicación aplicada al proyecto |
+| Ventaja | ExplicaciÃ³n aplicada al proyecto |
 |---|---|
-| Menor redundancia | Los datos de clientes, productos, vendedores y categorías no se repiten innecesariamente en cada orden. |
-| Mayor integridad referencial | Se pueden controlar relaciones mediante claves primarias y foráneas. |
-| Mejor mantenimiento | Si cambia la información de un producto, vendedor o categoría, se actualiza en una sola tabla. |
-| Menos anomalías de actualización | Se reducen inconsistencias al modificar, insertar o eliminar registros. |
-| Diseño más claro | Cada tabla representa una entidad específica del negocio. |
-| Mejor soporte transaccional | PostgreSQL puede garantizar consistencia en operaciones críticas como órdenes y pagos. |
+| Menor redundancia | Los datos de clientes, productos, vendedores y categorÃ­as no se repiten innecesariamente en cada orden. |
+| Mayor integridad referencial | Se pueden controlar relaciones mediante claves primarias y forÃ¡neas. |
+| Mejor mantenimiento | Si cambia la informaciÃ³n de un producto, vendedor o categorÃ­a, se actualiza en una sola tabla. |
+| Menos anomalÃ­as de actualizaciÃ³n | Se reducen inconsistencias al modificar, insertar o eliminar registros. |
+| DiseÃ±o mÃ¡s claro | Cada tabla representa una entidad especÃ­fica del negocio. |
+| Mejor soporte transaccional | PostgreSQL puede garantizar consistencia en operaciones crÃ­ticas como Ã³rdenes y pagos. |
 
-## Desventajas de una alta normalización
+## Desventajas de una alta normalizaciÃ³n
 
-| Desventaja | Explicación aplicada al proyecto |
+| Desventaja | ExplicaciÃ³n aplicada al proyecto |
 |---|---|
-| Mayor cantidad de joins | Consultas analíticas pueden requerir unir muchas tablas. |
-| Consultas más complejas | Reportes como ventas por región, producto y categoría pueden ser más difíciles de construir. |
-| Posible impacto en rendimiento analítico | Consultas con muchos joins pueden ser costosas si no hay buenos índices. |
-| Mayor esfuerzo de diseño | Se requiere definir correctamente claves, relaciones y restricciones. |
-| Menor flexibilidad para datos variables | Información como reseñas, comentarios o catálogo enriquecido puede cambiar de estructura. |
-| No siempre es óptima para dashboards | Los tableros suelen requerir datos ya agregados o desnormalizados. |
+| Mayor cantidad de joins | Consultas analÃ­ticas pueden requerir unir muchas tablas. |
+| Consultas mÃ¡s complejas | Reportes como ventas por regiÃ³n, producto y categorÃ­a pueden ser mÃ¡s difÃ­ciles de construir. |
+| Posible impacto en rendimiento analÃ­tico | Consultas con muchos joins pueden ser costosas si no hay buenos Ã­ndices. |
+| Mayor esfuerzo de diseÃ±o | Se requiere definir correctamente claves, relaciones y restricciones. |
+| Menor flexibilidad para datos variables | InformaciÃ³n como reseÃ±as, comentarios o catÃ¡logo enriquecido puede cambiar de estructura. |
+| No siempre es Ã³ptima para dashboards | Los tableros suelen requerir datos ya agregados o desnormalizados. |
 
-## Conclusión del trade-off
+## ConclusiÃ³n del trade-off
 
-Para el componente transaccional de Ecommify se recomienda normalizar hasta 3FN, especialmente en las entidades relacionadas con clientes, órdenes, pagos, productos, vendedores e ítems de orden.
+Para el componente transaccional de Ecommify se recomienda normalizar hasta 3FN, especialmente en las entidades relacionadas con clientes, Ã³rdenes, pagos, productos, vendedores e Ã­tems de orden.
 
-Sin embargo, para consultas analíticas, dashboards, catálogo enriquecido, análisis geográfico y reseñas, se recomienda aplicar desnormalización estratégica en una capa complementaria, preferiblemente en MongoDB.
+Sin embargo, para consultas analÃ­ticas, dashboards, catÃ¡logo enriquecido, anÃ¡lisis geogrÃ¡fico y reseÃ±as, se recomienda aplicar desnormalizaciÃ³n estratÃ©gica en una capa complementaria, preferiblemente en MongoDB.
 
-## 8. ¿Qué tablas normalizar hasta 3FN y dónde considerar desnormalización?
+## 8. Â¿QuÃ© tablas normalizar hasta 3FN y dÃ³nde considerar desnormalizaciÃ³n?
 
-## Tablas recomendadas para normalización hasta 3FN
+## Tablas recomendadas para normalizaciÃ³n hasta 3FN
 
-| Tabla | Decisión | Justificación |
+| Tabla | DecisiÃ³n | JustificaciÃ³n |
 |---|---|---|
-| `customers` | Normalizar hasta 3FN | Contiene datos propios del cliente y se relaciona con órdenes. |
+| `customers` | Normalizar hasta 3FN | Contiene datos propios del cliente y se relaciona con Ã³rdenes. |
 | `orders` | Normalizar hasta 3FN con extension controlada | Es la entidad principal del proceso transaccional. Se permite `lifecycle JSONB` como historial complementario sin reemplazar las fechas principales. |
 | `order_items` | Normalizar hasta 3FN | Representa el detalle de productos por orden. |
-| `order_payments` | Normalizar hasta 3FN | Contiene pagos asociados a órdenes y requiere consistencia. No se mueve a `JSONB`. |
+| `order_payments` | Normalizar hasta 3FN | Contiene pagos asociados a Ã³rdenes y requiere consistencia. No se mueve a `JSONB`. |
 | `products` | Normalizar hasta 3FN con atributos flexibles controlados | Contiene atributos propios del producto. Las dimensiones permanecen como columnas; `specifications JSONB` y `photo_urls TEXT[]` se agregan solo para flexibilidad de catalogo. |
-| `sellers` | Normalizar hasta 3FN | Contiene información propia del vendedor. |
-| `category_translation` | Normalizar como tabla de referencia | Evita repetir la traducción de categorías en cada producto. |
-| `order_reviews` | Normalizar en PostgreSQL, pero también considerar MongoDB | Puede mantenerse relacionada con órdenes, pero sus campos de texto y nulos la hacen candidata para documentos. |
+| `sellers` | Normalizar hasta 3FN | Contiene informaciÃ³n propia del vendedor. |
+| `category_translation` | Normalizar como tabla de referencia | Evita repetir la traducciÃ³n de categorÃ­as en cada producto. |
+| `order_reviews` | Normalizar en PostgreSQL, pero tambiÃ©n considerar MongoDB | Puede mantenerse relacionada con Ã³rdenes, pero sus campos de texto y nulos la hacen candidata para documentos. |
 | `geolocation` | Limpiar y consolidar antes de normalizar | Tiene alto volumen y duplicados, por lo que requiere tratamiento previo. |
 
-## Casos de uso para desnormalización estratégica
+## Casos de uso para desnormalizaciÃ³n estratÃ©gica
 
-La desnormalización estratégica consiste en combinar datos de varias tablas para mejorar consultas analíticas o de lectura, aceptando cierta redundancia controlada.
+La desnormalizaciÃ³n estratÃ©gica consiste en combinar datos de varias tablas para mejorar consultas analÃ­ticas o de lectura, aceptando cierta redundancia controlada.
 
-| Caso de uso | Datos combinados | Tecnología recomendada | Justificación |
+| Caso de uso | Datos combinados | TecnologÃ­a recomendada | JustificaciÃ³n |
 |---|---|---|---|
-| Catálogo enriquecido de productos | `products`, `category_translation`, `specifications`, `photo_urls`, dimensiones, métricas de ventas, reseñas | MongoDB | Permite consultar el producto con categoría, especificaciones flexibles, fotos, calificación y métricas en un solo documento. |
-| Resumen analítico de órdenes | `orders`, `orders.lifecycle`, `customers`, `order_items`, `payments` | MongoDB o vista materializada | Facilita reportes de ventas y seguimiento del ciclo de vida sin hacer múltiples joins. |
-| Análisis de comportamiento de cliente | `customers`, `orders`, `payments`, `reviews` | MongoDB | Permite construir perfiles analíticos por cliente. |
-| Análisis geográfico | `customers`, `sellers`, `geolocation`, `orders` | MongoDB | Permite consultas por estado, ciudad o región de forma agregada. |
-| Dashboard de ventas | Órdenes, productos, pagos, estados y fechas | MongoDB o tabla agregada | Mejora rendimiento para visualizaciones y reportes. |
-| Documentos de reviews | `order_reviews`, datos básicos de orden y producto | MongoDB | Las reseñas tienen texto libre, campos opcionales y alto porcentaje de nulos. |
-| Vista `orders_full` | Órdenes, clientes, ítems, pagos, productos, vendedores y reseñas | Solo analítica | No debe usarse como tabla transaccional, pero sí como base para análisis o documentos derivados. |
+| CatÃ¡logo enriquecido de productos | `products`, `category_translation`, `specifications`, `photo_urls`, dimensiones, mÃ©tricas de ventas, reseÃ±as | MongoDB | Permite consultar el producto con categorÃ­a, especificaciones flexibles, fotos, calificaciÃ³n y mÃ©tricas en un solo documento. |
+| Resumen analÃ­tico de Ã³rdenes | `orders`, `orders.lifecycle`, `customers`, `order_items`, `payments` | MongoDB o vista materializada | Facilita reportes de ventas y seguimiento del ciclo de vida sin hacer mÃºltiples joins. |
+| AnÃ¡lisis de comportamiento de cliente | `customers`, `orders`, `payments`, `reviews` | MongoDB | Permite construir perfiles analÃ­ticos por cliente. |
+| AnÃ¡lisis geogrÃ¡fico | `customers`, `sellers`, `geolocation`, `orders` | MongoDB | Permite consultas por estado, ciudad o regiÃ³n de forma agregada. |
+| Dashboard de ventas | Ã“rdenes, productos, pagos, estados y fechas | MongoDB o tabla agregada | Mejora rendimiento para visualizaciones y reportes. |
+| Documentos de reviews | `order_reviews`, datos bÃ¡sicos de orden y producto | MongoDB | Las reseÃ±as tienen texto libre, campos opcionales y alto porcentaje de nulos. |
+| Vista `orders_full` | Ã“rdenes, clientes, Ã­tems, pagos, productos, vendedores y reseÃ±as | Solo analÃ­tica | No debe usarse como tabla transaccional, pero sÃ­ como base para anÃ¡lisis o documentos derivados. |
 
-## Decisión final
+## DecisiÃ³n final
 
-Para el proyecto Ecommify se propone mantener un modelo relacional normalizado hasta 3FN en PostgreSQL para las operaciones transaccionales. Este modelo debe incluir clientes, órdenes, ítems de orden, pagos, productos, vendedores y categorías.
+Para el proyecto Ecommify se propone mantener un modelo relacional normalizado hasta 3FN en PostgreSQL para las operaciones transaccionales. Este modelo debe incluir clientes, Ã³rdenes, Ã­tems de orden, pagos, productos, vendedores y categorÃ­as.
 
-La desnormalización se considera únicamente para necesidades analíticas, consultas de lectura, dashboards, catálogo enriquecido, reseñas y análisis geográfico. En estos casos, MongoDB puede almacenar documentos derivados que integren información de varias tablas sin afectar la integridad del modelo transaccional.
+La desnormalizaciÃ³n se considera Ãºnicamente para necesidades analÃ­ticas, consultas de lectura, dashboards, catÃ¡logo enriquecido, reseÃ±as y anÃ¡lisis geogrÃ¡fico. En estos casos, MongoDB puede almacenar documentos derivados que integren informaciÃ³n de varias tablas sin afectar la integridad del modelo transaccional.
 
-En conclusión:
+En conclusiÃ³n:
 
-| Necesidad | Decisión |
+| Necesidad | DecisiÃ³n |
 |---|---|
-| Operación transaccional | PostgreSQL normalizado hasta 3FN |
-| Integridad de órdenes y pagos | PostgreSQL; pagos permanecen en `order_payments`, con `payment_sk` como PK y secuencia unica por orden |
-| Catálogo enriquecido | MongoDB con `specifications`, `photo_urls` y `dimensions` derivados desde PostgreSQL |
+| OperaciÃ³n transaccional | PostgreSQL normalizado hasta 3FN |
+| Integridad de Ã³rdenes y pagos | PostgreSQL; pagos permanecen en `order_payments`, con `payment_sk` como PK y secuencia unica por orden |
+| CatÃ¡logo enriquecido | MongoDB con `specifications`, `photo_urls` y `dimensions` derivados desde PostgreSQL |
 | Reviews y comentarios | MongoDB |
-| Análisis geográfico | MongoDB |
+| AnÃ¡lisis geogrÃ¡fico | MongoDB |
 | Dashboards y reportes | Vistas materializadas en PostgreSQL y documentos MongoDB derivados |
 | Particionamiento de ordenes | `orders` particionada por fecha con estrategia hot/cold |
 | Mantenimiento operativo | Triggers `updated_at`, `VACUUM/ANALYZE`, refresh de MVs y creacion mensual de particiones |
 | Monitoreo OLTP/OLAP | Medir latencia transaccional, refresh de vistas, tiempo de dashboards y crecimiento de datos |
-| `orders_full` | Vista analítica, no modelo transaccional final |
+| `orders_full` | Vista analÃ­tica, no modelo transaccional final |
 
 
 
@@ -1223,9 +1255,9 @@ erDiagram
 
 ---
 
-## 9. Validaciones reproducibles del análisis
+## 9. Validaciones reproducibles del anÃ¡lisis
 
-Las siguientes celdas conservan el código necesario para reproducir la carga, el EDA, la construcción de `orders_full` y las validaciones de normalización. Se mantiene una sola versión del bloque de carga y exploración para evitar duplicidad entre notebooks.
+Las siguientes celdas conservan el cÃ³digo necesario para reproducir la carga, el EDA, la construcciÃ³n de `orders_full` y las validaciones de normalizaciÃ³n. Se mantiene una sola versiÃ³n del bloque de carga y exploraciÃ³n para evitar duplicidad entre notebooks.
 
 # Actividad U3
 ## Etapa 2: Estructuracion. Planificacion de estrategias de sharding y replica sets
@@ -1769,8 +1801,8 @@ El diagrama representa la arquitectura objetivo para el crecimiento de la capa d
 | Arbiter | Se descarta el uso de Arbiter. | No almacena datos y no mejora redundancia. | El tercer voto corresponde a un nodo con datos. |
 | Escrituras derivadas | `{ w: "majority", j: true, wtimeout: 5000 }`. | Necesidad de durabilidad en la sincronizacion. | El job detecta fallas de confirmacion y evita esperas indefinidas. |
 | Lecturas analiticas | `secondaryPreferred` con `read concern: "local"`. | Dashboards tolerantes a desfase controlado. | Se descarga el Primary y se conserva fallback. |
-| Catalogo de baja latencia | `nearest` con `maxStalenessSeconds` y `read concern: "local"`. | Catálogo derivado orientado a experiencia de consulta. | Se prioriza latencia sin aceptar secundarios excesivamente desactualizados. |
-| Consistencia eventual | Se acepta para catalogo y analitica; se excluye para pagos y ordenes criticas. | Separacion OLTP/OLAP. | Las operaciones criticas continúan consultando PostgreSQL. |
+| Catalogo de baja latencia | `nearest` con `maxStalenessSeconds` y `read concern: "local"`. | CatÃ¡logo derivado orientado a experiencia de consulta. | Se prioriza latencia sin aceptar secundarios excesivamente desactualizados. |
+| Consistencia eventual | Se acepta para catalogo y analitica; se excluye para pagos y ordenes criticas. | Separacion OLTP/OLAP. | Las operaciones criticas continÃºan consultando PostgreSQL. |
 
 ### 10.3 Decisiones diferidas
 
@@ -1802,3 +1834,8 @@ El diagrama representa la arquitectura objetivo para el crecimiento de la capa d
 - MongoDB, Inc. Hashed Sharding: https://www.mongodb.com/docs/manual/core/hashed-sharding/
 - MongoDB, Inc. Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
 - MongoDB, Inc. Atlas Free Cluster Limitations: https://www.mongodb.com/docs/atlas/reference/free-shared-limitations/
+
+
+
+
+
