@@ -14,19 +14,37 @@ La estructura principal del proyecto es la siguiente:
 README.md
 Ecommify_Database_Design/
 |-- README.md
+|-- docker/
+|   |-- README.md
+|   |-- arquitectura_docker.md
+|   |-- docker-compose.yml
+|   |-- .env.example
+|   |-- .gitignore
+|   |-- postgres/init/00_run_schema.sh
+|   `-- mongo/init/00_init_mongo.js
+|-- tools/
+|   |-- requirements-sync.txt
+|   `-- sync_postgres_to_mongo.py
 |-- docs/
 |   |-- Actividad_U3_Etapa_2.md
 |   |-- Actividad_U4_Etapa_2.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.md
+|   |-- Documento_Tecnico_Implementacion_U5_Actividad_2.md
+|   |-- Evidencia_Migracion_Cloud_Supabase.md
+|   |-- Evidencia_Migracion_Cloud_MongoDB_Atlas.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
 |   |-- pdf-style.css
-|   `-- Presentación ejecutiva.pptx
+|   `-- Presentacion ejecutiva.pptx
 |-- postgresql/
 |   |-- README.md
+|   |-- cloud/
+|   |   |-- cloud_supabase_schema.sql
+|   |   |-- cloud_supabase_schema_clean.sql
+|   |   |-- cloud_supabase_schema_supabase.sql
+|   |   `-- cloud_supabase_data_bloque_01_catalogo.sql
 |   |-- schema/
-|   |   |-- README.md
 |   |   |-- paso_01_crear_esquema.sql
 |   |   |-- paso_02_crear_tablas_base.sql
 |   |   |-- paso_03_crear_indices.sql
@@ -34,11 +52,16 @@ Ecommify_Database_Design/
 |   |   |-- paso_05_crear_vistas_materializadas.sql
 |   |   `-- paso_06_borrador_particionamiento_orders.sql
 |   |-- queries/
-|   |   |-- README.md
 |   |   |-- paso_07_refrescar_vistas_materializadas.sql
-|   |   `-- paso_08_consultas_analiticas_ejemplo.sql
+|   |   |-- paso_08_consultas_analiticas_ejemplo.sql
+|   |   `-- paso_09_benchmark_antes_despues_indices.sql
+|   |-- evidencias
+|   |-- evidencias.md
 |   `-- seed_data/
-|       `-- README.md
+|       |-- paso_06_crear_staging.sql
+|       |-- paso_07_cargar_csv_staging.sql
+|       |-- paso_08_insertar_modelo_final.sql
+|       `-- paso_09_validar_carga.sql
 |-- mongodb/
 |   |-- README.md
 |   |-- schema/
