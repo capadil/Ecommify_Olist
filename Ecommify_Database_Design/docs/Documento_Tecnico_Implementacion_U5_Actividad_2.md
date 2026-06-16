@@ -1,4 +1,11 @@
-﻿# Documento tecnico de implementacion - Unidad 5 Actividad 2
+﻿# Ecommify_Olist
+
+**Integrantes Grupo01 - Equipo E16:** 
+  * Jorge Andres Ayala Valero - jorgeayva@unisabana.edu.co
+  * Pablo Andres Melo Garcia - pablomega@unisabana.edu.co
+  * Camilo Andres Padilla Garcia - camilopaga@unisabana.edu.co
+
+# Documento tecnico de implementacion - Unidad 5 Actividad 2
 
 ## a. Resumen ejecutivo
 
