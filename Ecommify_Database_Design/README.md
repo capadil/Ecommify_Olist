@@ -25,11 +25,13 @@ Ecommify_Database_Design/
 |   |-- Documento_Tecnico_Implementacion_U5_Actividad_2.md
 |   |-- Evidencia_Migracion_Cloud_Supabase.md
 |   |-- Evidencia_Migracion_Cloud_MongoDB_Atlas.md
+|   |-- Informe_Tecnico_Integral_U6_Etapa_2.md
+|   |-- Pruebas_Rendimiento_Consolidadas_U6.md
 |   |-- Documento_Tecnico_Diseno_Etapa_2.pdf
 |   |-- Modelo_Entidad_Relacion.md
 |   |-- modelo_entidad_relacion.mmd
 |   |-- pdf-style.css
-|   `-- Presentacion ejecutiva.pptx
+|   `-- Presentación ejecutiva.pptx
 |-- postgresql/
 |   |-- README.md
 |   |-- cloud/
@@ -182,11 +184,13 @@ No se migraron tablas staging ni `benchmark_results` a Supabase para cuidar el l
 - `docs/Actividad_U4_Etapa_2.md`: entregable independiente de la Actividad U4.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.md`: documento tecnico editable del diseno conceptual y logico.
 - `docs/Documento_Tecnico_Implementacion_U5_Actividad_2.md`: documento tecnico de implementacion para la Unidad 5 - Actividad 2.
+- `docs/Informe_Tecnico_Integral_U6_Etapa_2.md`: informe tecnico integral final de la Unidad 6 - Etapa 2, con arquitectura cloud, CAP, evaluacion critica, comparacion PostgreSQL vs MongoDB y recomendaciones.
+- `docs/Pruebas_Rendimiento_Consolidadas_U6.md`: indice consolidado de pruebas, benchmarks, evidencias cloud y limitaciones de carga/concurrencia.
 - `docs/Documento_Tecnico_Diseno_Etapa_2.pdf`: version PDF del documento tecnico.
 - `docs/Modelo_Entidad_Relacion.md`: modelo entidad-relacion en Markdown.
 - `docs/modelo_entidad_relacion.mmd`: fuente Mermaid del diagrama entidad-relacion.
 - `docs/pdf-style.css`: estilos de exportacion PDF para tablas y bloques largos.
-- `docs/PresentaciÃ³n ejecutiva.pptx`: presentacion ejecutiva del proyecto.
+- `docs/Presentación ejecutiva.pptx`: presentacion ejecutiva del proyecto.
 - `postgresql/seed_data/`: scripts de staging, carga CSV, insercion al modelo final y validacion.
 - `postgresql/evidencias.md`: lectura academica de las evidencias PostgreSQL; `postgresql/evidencias` conserva la salida cruda.
 - `mongodb/evidencias.md`: lectura academica de las evidencias MongoDB; `mongodb/evidencias` conserva la salida cruda.
@@ -206,6 +210,20 @@ La Unidad 5 - Actividad 2 queda consolidada como una implementacion local reprod
 | Decisiones tecnicas validadas | PostGIS, `pg_trgm`, vistas materializadas, indices, validadores MongoDB, indice compuesto en `review_documents` | Validado con dataset real |
 | Migracion PostgreSQL/PostGIS a Supabase | `postgresql/cloud/`, `docs/Evidencia_Migracion_Cloud_Supabase.md` | Implementado y validado |
 | Migracion MongoDB a Atlas | `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Implementado y validado |
+
+### Consolidacion Unidad 6 - Etapa 2
+
+La Unidad 6 - Etapa 2 se entrega como cierre integral del proyecto. La arquitectura final validada es cloud: Supabase PostgreSQL/PostGIS como fuente de verdad relacional y espacial, y MongoDB Atlas como capa documental derivada. Docker se conserva solamente como ambiente reproducible de pruebas, reconstruccion desde CSV y preparacion de artefactos.
+
+| Aspecto requerido | Evidencia / archivo | Estado |
+|---|---|---|
+| Informe tecnico integral | `docs/Informe_Tecnico_Integral_U6_Etapa_2.md` | Documentado |
+| Evaluacion de rendimiento consolidada | `docs/Pruebas_Rendimiento_Consolidadas_U6.md` | Documentado |
+| Comparacion PostgreSQL vs MongoDB | `docs/Informe_Tecnico_Integral_U6_Etapa_2.md` | Documentado |
+| Analisis CAP y consistencia eventual | `docs/Informe_Tecnico_Integral_U6_Etapa_2.md`, `docs/Actividad_U3_Etapa_2.md` | Documentado |
+| Evidencias cloud | `docs/Evidencia_Migracion_Cloud_Supabase.md`, `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Validado |
+| Recomendaciones de escalamiento 10x | `docs/Informe_Tecnico_Integral_U6_Etapa_2.md` | Documentado |
+| Repositorio reproducible | `docker/README.md`, `docker/docker-compose.yml`, `postgresql/README.md`, `mongodb/README.md` | Documentado |
 
 ## Indice
 
