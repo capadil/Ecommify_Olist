@@ -62,71 +62,61 @@ Presentar brevemente quien habla en cada bloque.
 
 ## Bloque 4 — Demo en vivo (5:00 - 9:00)
 
-**En pantalla:** alternar entre terminal/cliente SQL sobre Supabase y la consola de MongoDB Atlas. Tener las consultas preparadas y probadas antes de grabar.
+**En pantalla:** alternar entre la consola de Supabase y la de MongoDB Atlas. Tener las consultas preparadas y probadas antes de grabar, y las dos pestanas del navegador ya abiertas y con sesion iniciada.
 
-Guion de acciones (narrar mientras se ejecuta):
+### Preparacion antes de grabar (no se graba)
 
-1. **Supabase — modelo cargado (0:30).** Mostrar el panel con las 9 tablas y los conteos: 99.441 clientes y ordenes, 112.650 items, 103.886 pagos. "Estos son datos reales de Olist ya normalizados en Supabase."
+1. Abrir el navegador con **dos pestanas**: una en `https://supabase.com/dashboard` y otra en `https://cloud.mongodb.com`.
+2. Iniciar sesion en ambas con la cuenta del proyecto.
+3. Aumentar el zoom de la pagina a 110-125% (Ctrl con +) para que el texto se lea en el video.
+4. Tener a la mano el archivo `postgresql/queries/paso_09_benchmark_antes_despues_indices.sql` y `mongodb/queries/paso_11_benchmark_antes_despues_indices.js` para copiar/pegar las consultas.
 
-2. **Consulta OLTP por order_id (0:45).** Ejecutar `EXPLAIN ANALYZE` de la busqueda por orden. "Con el indice sobre order_id y las FK internas, la busqueda puntual resuelve en fracciones de milisegundo y hace join con pagos e items por llave."
+### Parte A — Supabase / PostgreSQL (2:00)
 
-3. **Busqueda espacial PostGIS (0:45).** Ejecutar la consulta por radio geografico. "PostGIS con indice GiST permite encontrar ubicaciones dentro de un radio; es el tipo de consulta que solo el motor relacional resuelve bien."
+**Paso A1 — Mostrar las tablas y conteos (0:30)**
+- Ruta: en la pestana de Supabase, clic en el **proyecto Ecommify** en el dashboard.
+- En la **barra lateral izquierda**, clic en el icono **"Table Editor"** (icono de cuadricula/tabla).
+- En el panel de la izquierda aparece la lista de las **9 tablas** (`customers`, `orders`, `order_items`, `order_payments`, `order_reviews`, `products`, `sellers`, `category_translation`, `geolocation_clean`). Clic en `orders` para mostrar filas reales.
+- Narrar: *"Estos son datos reales de Olist ya normalizados en Supabase: 9 tablas, mas de cien mil ordenes."*
+- (Opcional para conteos exactos) clic en **"SQL Editor"** en la barra lateral → **"+ New query"** → pegar `SELECT count(*) FROM orders;` → boton **"Run"** (o Ctrl+Enter).
 
-4. **Vista materializada de ventas (0:30).** Consultar la MV de ventas por categoria/mes. "Los dashboards leen agregados precalculados en vez de recalcular en cada peticion."
+**Paso A2 — Consulta OLTP por order_id con EXPLAIN ANALYZE (0:45)**
+- Ruta: barra lateral → **"SQL Editor"** → **"+ New query"**.
+- Pegar la consulta OLTP con `EXPLAIN (ANALYZE, BUFFERS)` (esta en el script `paso_09_benchmark...sql`). Clic en **"Run"**.
+- Senalar en el plan la linea **`Index Scan using idx_orders_order_id`** y el **`Execution Time`** al final.
+- Narrar: *"Con el indice sobre order_id y las FK internas, la busqueda puntual resuelve en fracciones de milisegundo y hace join con pagos e items por llave."*
 
-5. **MongoDB Atlas — colecciones derivadas (0:45).** Mostrar las 5 colecciones y un documento de `product_catalog` y uno de `geo_analytics`. "Cada documento ya viene listo para lectura, sin joins."
+**Paso A3 — Busqueda espacial PostGIS (0:30)**
+- Ruta: misma **"SQL Editor"**, **"+ New query"**, pegar la consulta de radio con `ST_DWithin(...)`. Clic en **"Run"**.
+- Narrar: *"PostGIS con indice GiST encuentra ubicaciones dentro de un radio; es el tipo de consulta que solo el motor relacional resuelve bien."*
+- (Opcional) mostrar que la extension existe: barra lateral → **"Database"** → **"Extensions"** → buscar `postgis` y `pg_trgm` (aparecen como habilitadas).
 
-6. **Consulta con indice en Atlas (0:30).** Ejecutar la consulta de `geo_analytics` por estado/ciudad con `explain`. "El indice compuesto reduce los documentos examinados de mas de 20 mil a 20."
+**Paso A4 — Vista materializada de ventas (0:15)**
+- Ruta: **"SQL Editor"** → **"+ New query"** → `SELECT * FROM mv_sales_by_category_monthly LIMIT 20;` → **"Run"**.
+- Narrar: *"Los dashboards leen agregados precalculados en una vista materializada, en vez de recalcular en cada peticion."*
 
-7. **Job de sincronizacion (0:15).** Mostrar `tools/sync_postgres_to_mongo.py` y mencionar que es batch e idempotente con upsert.
+### Parte B — MongoDB Atlas (1:45)
 
-> Consejo: si alguna consulta cloud tarda por el free tier, tener listas las capturas de respaldo y comentarlo como limitacion conocida.
+**Paso B1 — Abrir las colecciones (0:30)**
+- Ruta: cambiar a la pestana de **Atlas** (`cloud.mongodb.com`).
+- Seleccionar arriba la **Organizacion** y el **Proyecto** correctos si pide.
+- En la barra lateral izquierda, bajo **"Deployments"**, clic en **"Database"**.
+- En la tarjeta del cluster, clic en el boton **"Browse Collections"**.
+- En el panel izquierdo, expandir la base de datos **`ecommify`**: se ven las **5 colecciones** (`product_catalog`, `customer_profiles`, `seller_performance`, `geo_analytics`, `review_documents`). Clic en `product_catalog`.
+- Narrar: *"Cada documento ya viene listo para lectura, sin joins: producto con su categoria, metricas y resenas en un solo documento."* Mostrar tambien `geo_analytics`.
 
----
+**Paso B2 — Filtrar un documento (0:30)**
+- Ruta: con `product_catalog` abierta, en la barra **"Filter"** escribir, por ejemplo, `{ "category.translated_name": "bed_bath_table" }` → boton **"Apply"** (o "Find").
+- Narrar: *"La consulta por categoria devuelve el documento directamente."*
 
-## Bloque 5 — Resultados y analisis comparativo (9:00 - 11:30)
+**Paso B3 — Mostrar el indice (0:30)**
+- Ruta: en la misma coleccion, clic en la pestana **"Indexes"** (arriba, junto a "Find"/"Aggregation"/"Schema").
+- Senalar el indice **`category.translated_name_1`** (y en `geo_analytics`, el indice compuesto **`state_1_city_1`**).
+- Narrar: *"Este indice compuesto reduce los documentos examinados de mas de 20 mil a 20."*
+- (Opcional, explain real) clic en la pestana **"Aggregation"** → construir `$match` → menu **"..."** (Export/Explain) → **"Explain"**; o conectarse por shell: boton **"Connect"** → **"Shell"** y correr `db.geo_analytics.find({state:"SP"}).explain("executionStats")`.
 
-**En pantalla:** Slides 7 y 8 (graficas de rendimiento), luego Slide 9 (comparativa) y Slide 6 (CAP).
+**Paso B4 — Job de sincronizacion (0:15)**
+- Ruta: abrir en el editor/IDE el archivo **`tools/sync_postgres_to_mongo.py`** (o mostrarlo en GitHub).
+- Narrar: *"La sincronizacion es un job batch idempotente: lee PostgreSQL y escribe en Atlas con upsert, asi se puede reejecutar sin duplicar."*
 
-> "Estos son los resultados medidos con benchmarks antes y despues de las optimizaciones. En PostgreSQL, la busqueda OLTP por order_id paso de 25,9 milisegundos a 0,043: una reduccion del 99,83 por ciento. La busqueda espacial bajo un 98,66 por ciento. En MongoDB, la analitica geografica paso de examinar 20.888 documentos a solo 20 gracias al indice compuesto."
-
-**Slide 9 (comparativa):**
-
-> "Al comparar aspecto por aspecto, PostgreSQL gana en consultas transaccionales, integridad financiera y busqueda espacial. MongoDB gana en catalogo de lectura y flexibilidad de documentos. En dashboards hay empate controlado. La conclusion es que no hay un ganador absoluto: cada motor gana donde corresponde a su diseno."
-
-**Slide 6 (CAP):**
-
-> "Bajo el Teorema CAP, los modulos de ordenes, pagos y entidades maestras priorizan consistencia, es decir CP. El catalogo y los dashboards priorizan disponibilidad, AP, aceptando consistencia eventual porque sus datos son derivados y reconstruibles."
-
----
-
-## Bloque 6 — Lecciones aprendidas y recomendaciones (11:30 - 13:00)
-
-**En pantalla:** Slide 11 (lecciones) y Slide 12 (recomendaciones); opcional Slide 10 (escenarios).
-
-> "Aprendimos que una arquitectura hibrida solo funciona con una fuente de verdad clara y con documentos derivados reconstruibles. Tambien que los supuestos de unicidad se deben validar con datos reales, como nos paso con las resenas."
-
-> "Para escalar a diez veces el volumen recomendamos: migrar de free tier a planes productivos con backups y replicas, evolucionar la sincronizacion batch a incremental o CDC, e incorporar cache con Redis, busqueda con OpenSearch o Atlas Search, y observabilidad con Prometheus y Grafana. Y formalizar un CI/CD para los cambios de esquema, probando en Docker antes de aplicar en cloud."
-
-Mencionar brevemente los escenarios de Black Friday (prioriza disponibilidad en lectura) y auditoria financiera (prioriza consistencia estricta).
-
----
-
-## Bloque 7 — Conclusiones y cierre (13:00 - 14:00)
-
-**En pantalla:** Slide 13 (conclusiones) y Slide 14 (cierre).
-
-> "En conclusion, cumplimos los objetivos: disenamos, implementamos y evaluamos una arquitectura hibrida eficiente. PostgreSQL queda validado como nucleo transaccional y espacial; MongoDB Atlas como capa documental derivada. Las mejoras de rendimiento estan respaldadas con evidencia cuantitativa, y cada decision tecnologica esta justificada por modulo."
-
-> "El siguiente paso natural es ejecutar pruebas formales de carga concurrente y mover la sincronizacion a un esquema incremental con observabilidad. Gracias por su atencion; el codigo y la documentacion completa estan en nuestro repositorio."
-
----
-
-## Checklist de produccion
-
-- [ ] Probar todas las consultas de la demo antes de grabar.
-- [ ] Tener capturas de respaldo por si el free tier responde lento.
-- [ ] Verificar audio claro y comparticion de pantalla legible (zoom de fuente en terminal y consultas).
-- [ ] Confirmar duracion total entre 12 y 15 minutos.
-- [ ] Mostrar el repositorio al inicio y al final.
-- [ ] Exportar en 1080p y revisar que las graficas se lean bien.
+> Consejo: si una consulta cloud tarda por el free tier, tener listas las **capturas de respaldo** (o repetir desde el benchmark local) y comentarlo como l

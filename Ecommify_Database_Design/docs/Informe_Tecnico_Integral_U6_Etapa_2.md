@@ -334,11 +334,11 @@ Mas alla de las fallas de infraestructura, la arquitectura debe responder a esce
 
 | Escenario | Prioridad CAP | Modulo afectado | Configuracion recomendada | Trade-off aceptado |
 |---|---|---|---|---|
-| **Black Friday (pico de trafico)** | A en lectura / C en escritura | Catalogo y dashboards (Atlas) + ordenes/pagos (Supabase) | Atlas: `readPreference: secondaryPreferred`, `maxStalenessSeconds: 90`, cache Redis delante del catalogo. Supabase: pool de conexiones, replicas de lectura para reportes, escritura siempre en primary con `read committed`. | El catalogo y los dashboards pueden mostrar stock/metricas con segundos de desfase, pero las ordenes y pagos nunca se confirman de forma inconsistente. |
+| **Pico de ventas / campana de descuentos** | A en lectura / C en escritura | Catalogo y dashboards (Atlas) + ordenes/pagos (Supabase) | Atlas: `readPreference: secondaryPreferred`, `maxStalenessSeconds: 90`, cache Redis delante del catalogo. Supabase: pool de conexiones, replicas de lectura para reportes, escritura siempre en primary con `read committed`. | El catalogo y los dashboards pueden mostrar stock/metricas con segundos de desfase, pero las ordenes y pagos nunca se confirman de forma inconsistente. |
 | **Auditoria financiera** | C estricta | Ordenes, pagos e items (Supabase) | Lectura desde primary con `SERIALIZABLE` o `REPEATABLE READ`; bloquear lectura desde MongoDB para cifras contables; congelar ventana de sincronizacion durante el corte. | Menor disponibilidad/latencia durante la auditoria a cambio de cifras exactas y reproducibles. No se aceptan valores derivados de la capa documental. |
 | **Cierre de mes / reporting analitico** | A (tolerante a desfase) | Vistas materializadas + colecciones derivadas | Refrescar vistas materializadas fuera de hora pico, ejecutar el job de sync, servir dashboards desde Atlas `secondaryPreferred`. | Los reportes reflejan el estado al ultimo refresh; se acepta consistencia eventual a cambio de no impactar el OLTP transaccional. |
 
-La regla transversal es: **toda cifra con valor legal o financiero se resuelve en PostgreSQL con consistencia fuerte; toda lectura de experiencia o analitica tolera consistencia eventual y prioriza disponibilidad**. Black Friday no relaja la consistencia de pagos; solo relaja la frescura del catalogo y los dashboards.
+La regla transversal es: **toda cifra con valor legal o financiero se resuelve en PostgreSQL con consistencia fuerte; toda lectura de experiencia o analitica tolera consistencia eventual y prioriza disponibilidad**. Un pico de ventas no relaja la consistencia de pagos; solo relaja la frescura del catalogo y los dashboards.
 
 ### 5.3 Consistencia eventual y mitigacion
 
@@ -472,4 +472,4 @@ Para produccion, el proyecto debe evolucionar en tres frentes: pruebas formales 
 - MongoDB Write Concern: https://www.mongodb.com/docs/manual/reference/write-concern/
 - MongoDB Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
 - Supabase Database Webhooks: https://supabase.com/docs/guides/database/webhooks
-- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/postgres-changes
+- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/post
