@@ -145,4 +145,6 @@ Luego revisar los README tecnicos de cada motor:
 ## Notas de seguridad y entrega
 
 - `Ecommify_Database_Design/docker/.env` esta ignorado por Git.
--
+- `Ecommify_Database_Design/docker/.env.example` contiene credenciales locales de ejemplo.
+- Las credenciales reales de Supabase y Atlas no deben versionarse.
+- Las pruebas de carga concurrente formales quedan documentadas como siguiente mejora; el repositorio contiene benchmarks de consulta y evidencias de rendimiento antes/despues.

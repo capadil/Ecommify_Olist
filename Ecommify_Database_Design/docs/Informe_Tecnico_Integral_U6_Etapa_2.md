@@ -472,4 +472,4 @@ Para produccion, el proyecto debe evolucionar en tres frentes: pruebas formales 
 - MongoDB Write Concern: https://www.mongodb.com/docs/manual/reference/write-concern/
 - MongoDB Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
 - Supabase Database Webhooks: https://supabase.com/docs/guides/database/webhooks
-- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/post
+- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/postgres-changes
