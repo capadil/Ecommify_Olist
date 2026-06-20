@@ -445,4 +445,31 @@ Para produccion, el proyecto debe evolucionar en tres frentes: pruebas formales 
 
 ## 8. Referencias y anexos
 
-### 8.1 Artefactos internos del
+### 8.1 Artefactos internos del repositorio
+
+| Artefacto | Uso en este informe |
+|---|---|
+| `README.md` | Contexto general del proyecto y estructura. |
+| `Ecommify_Database_Design/README.md` | Fuente de verdad tecnica, arquitectura, secuencia de artefactos y decisiones. |
+| `docs/Documento_Tecnico_Implementacion_U5_Actividad_2.md` | Evidencias de implementacion, rendimiento y cloud. |
+| `docs/Pruebas_Rendimiento_Consolidadas_U6.md` | Consolidacion de benchmarks, validaciones cloud, fuentes de evidencia y limitaciones de pruebas de carga. |
+| `docs/Evidencia_Migracion_Cloud_Supabase.md` | Validacion Supabase, conteos, extensiones e indices. |
+| `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Validacion Atlas, colecciones, conteos e indices. |
+| `docs/Actividad_U3_Etapa_2.md` | Estrategia de sharding, replica sets y consistencia eventual. |
+| `docs/Actividad_U4_Etapa_2.md` | Optimizaciones, indices especializados y particionamiento propuesto. |
+| `postgresql/evidencias.md` | Evidencias PostgreSQL locales. |
+| `mongodb/evidencias.md` | Evidencias MongoDB locales. |
+| `docs/Modelo_Entidad_Relacion.md` | Modelo ER sintetico. |
+
+### 8.2 Referencias tecnicas externas
+
+- PostgreSQL Logical Replication: https://www.postgresql.org/docs/current/logical-replication.html
+- PostgreSQL Logical Decoding: https://www.postgresql.org/docs/current/logicaldecoding.html
+- MongoDB Sharding: https://www.mongodb.com/docs/manual/sharding/
+- MongoDB Shard Keys: https://www.mongodb.com/docs/manual/core/sharding-shard-key/
+- MongoDB Read Preference: https://www.mongodb.com/docs/manual/core/read-preference/
+- MongoDB Read Concern: https://www.mongodb.com/docs/manual/reference/read-concern/
+- MongoDB Write Concern: https://www.mongodb.com/docs/manual/reference/write-concern/
+- MongoDB Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
+- Supabase Database Webhooks: https://supabase.com/docs/guides/database/webhooks
+- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/postgres-changes
