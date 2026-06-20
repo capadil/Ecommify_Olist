@@ -120,3 +120,96 @@ Presentar brevemente quien habla en cada bloque.
 - Narrar: *"La sincronizacion es un job batch idempotente: lee PostgreSQL y escribe en Atlas con upsert, asi se puede reejecutar sin duplicar."*
 
 > Consejo: si una consulta cloud tarda por el free tier, tener listas las **capturas de respaldo** (o repetir desde el benchmark local) y comentarlo como l
+---
+
+## Anexo A — Consultas listas para copiar/pegar en la demo
+
+> IMPORTANTE: en la demo **NO** ejecutes los archivos `paso_09_...sql` ni `paso_11_...js` completos. Esos scripts sirvieron para *generar* las metricas en Docker (desactivan indices, crean tablas, guardan resultados) y en pantalla no muestran nada util. Para el video corre **una consulta a la vez**, copiando solo el bloque que esta entre lineas.
+
+### Supabase / PostgreSQL — SQL Editor
+
+Cada bloque se pega en **SQL Editor -> "+ New query"** y se ejecuta con **Run** (Ctrl+Enter). El prefijo `EXPLAIN (ANALYZE, BUFFERS)` hace que se vea el plan y el `Execution Time`.
+
+**A0 (opcional) — Conteo rapido de las 9 tablas**
+```sql
+SET search_path TO ecommify, public;
+SELECT 'orders' AS tabla, count(*) FROM orders
+UNION ALL SELECT 'customers', count(*) FROM customers
+UNION ALL SELECT 'order_items', count(*) FROM order_items
+UNION ALL SELECT 'order_payments', count(*) FROM order_payments;
+```
+
+**A2 — Consulta OLTP por order_id (la que mencionamos)**
+```sql
+SET search_path TO ecommify, public;
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT o.order_id, o.order_status, c.customer_id, op.payment_value
+FROM orders o
+JOIN customers c       ON c.customer_sk = o.customer_sk
+LEFT JOIN order_payments op ON op.order_sk = o.order_sk
+WHERE o.order_id = 'e481f51cbdc54678b7cc49136f2d6af7';
+```
+En pantalla, senalar la linea `Index Scan using idx_orders_order_id` y el `Execution Time` al final.
+
+**A3a — Busqueda textual aproximada (pg_trgm)**
+```sql
+SET search_path TO ecommify, public;
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT customer_id, customer_city, customer_state
+FROM customers
+WHERE customer_city % 'sao paulo'
+ORDER BY similarity(customer_city, 'sao paulo') DESC
+LIMIT 20;
+```
+
+**A3b — Busqueda espacial PostGIS por radio (5 km de Sao Paulo)**
+```sql
+SET search_path TO ecommify, public;
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT geolocation_zip_code_prefix, geolocation_city, geolocation_state
+FROM geolocation_clean
+WHERE ST_DWithin(
+    geog,
+    ST_SetSRID(ST_MakePoint(-46.6333, -23.5505), 4326)::geography,
+    5000
+)
+LIMIT 20;
+```
+
+**A4 — Vista materializada de ventas (lectura preagregada)**
+```sql
+SET search_path TO ecommify, public;
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT sales_month, category_name, total_value
+FROM mv_sales_by_category_monthly
+WHERE sales_month BETWEEN DATE '2018-01-01' AND DATE '2018-12-01'
+ORDER BY total_value DESC
+LIMIT 10;
+```
+
+> Para mostrar el resultado real (no el plan), corre la misma consulta SIN el prefijo `EXPLAIN (ANALYZE, BUFFERS)`.
+
+### MongoDB Atlas — Data Explorer (Browse Collections)
+
+En Atlas, al abrir una coleccion, pega solo el objeto JSON en la barra **Filter** y pulsa **Apply**. No pegues codigo JavaScript ahi.
+
+**B2 — Filtro en `product_catalog` (por categoria)**
+```json
+{ "category.translated_name": "computers_accessories" }
+```
+
+**B2b — Filtro en `geo_analytics` (por estado y ciudad)**
+```json
+{ "state": "SP", "city": "sao paulo" }
+```
+
+**B3 — Ver el indice**: en la coleccion abierta, pestana **Indexes**. Mostrar `category.translated_name_1` en `product_catalog` y el compuesto `state_1_city_1` en `geo_analytics`.
+
+**B3b (opcional) — Explain real por consola**: en la tarjeta del cluster, boton **Connect -> Shell** (mongosh) y ejecutar:
+```javascript
+use ecommify_analytics
+db.geo_analytics.find({ state: "SP", city: "sao paulo" }).explain("executionStats")
+```
+Senalar `totalDocsExamined` (baja a ~20) y `nReturned`.
+
+> Nota: la base de datos donde viven las colecciones derivadas puede llamarse `ecommify` o `ecommify_analytics` segun como quedo la sincronizacion; usar la que aparezca listada en Atlas al hacer "Browse Collections".
