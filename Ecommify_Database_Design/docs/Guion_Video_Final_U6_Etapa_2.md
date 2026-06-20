@@ -130,9 +130,12 @@ Presentar brevemente quien habla en cada bloque.
 
 Cada bloque se pega en **SQL Editor -> "+ New query"** y se ejecuta con **Run** (Ctrl+Enter). El prefijo `EXPLAIN (ANALYZE, BUFFERS)` hace que se vea el plan y el `Execution Time`.
 
+> NOTA: el `search_path` incluye `extensions` porque en Supabase las extensiones `pg_trgm` (operador `%`, `similarity()`) y `postgis` (`ST_DWithin`) viven en el esquema `extensions`. Si falta, ejecuta una vez `CREATE EXTENSION IF NOT EXISTS pg_trgm;` y `CREATE EXTENSION IF NOT EXISTS postgis;`.
+
+
 **A0 (opcional) — Conteo rapido de las 9 tablas**
 ```sql
-SET search_path TO ecommify, public;
+SET search_path TO ecommify, public, extensions;
 SELECT 'orders' AS tabla, count(*) FROM orders
 UNION ALL SELECT 'customers', count(*) FROM customers
 UNION ALL SELECT 'order_items', count(*) FROM order_items
@@ -141,7 +144,7 @@ UNION ALL SELECT 'order_payments', count(*) FROM order_payments;
 
 **A2 — Consulta OLTP por order_id (la que mencionamos)**
 ```sql
-SET search_path TO ecommify, public;
+SET search_path TO ecommify, public, extensions;
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT o.order_id, o.order_status, c.customer_id, op.payment_value
 FROM orders o
@@ -153,7 +156,7 @@ En pantalla, senalar la linea `Index Scan using idx_orders_order_id` y el `Execu
 
 **A3a — Busqueda textual aproximada (pg_trgm)**
 ```sql
-SET search_path TO ecommify, public;
+SET search_path TO ecommify, public, extensions;
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT customer_id, customer_city, customer_state
 FROM customers
@@ -164,7 +167,7 @@ LIMIT 20;
 
 **A3b — Busqueda espacial PostGIS por radio (5 km de Sao Paulo)**
 ```sql
-SET search_path TO ecommify, public;
+SET search_path TO ecommify, public, extensions;
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT geolocation_zip_code_prefix, geolocation_city, geolocation_state
 FROM geolocation_clean
@@ -178,7 +181,7 @@ LIMIT 20;
 
 **A4 — Vista materializada de ventas (lectura preagregada)**
 ```sql
-SET search_path TO ecommify, public;
+SET search_path TO ecommify, public, extensions;
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT sales_month, category_name, total_value
 FROM mv_sales_by_category_monthly
