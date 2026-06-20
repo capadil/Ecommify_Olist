@@ -49,7 +49,10 @@ Mejoras de rendimiento consolidadas:
 
 | Entregable | Archivo |
 |---|---|
-| Informe tecnico integral U6 Etapa 2 | `Ecommify_Database_Design/docs/Informe_Tecnico_Integral_U6_Etapa_2.md` |
+| Informe tecnico integral U6 Etapa 2 (Markdown) | `Ecommify_Database_Design/docs/Informe_Tecnico_Integral_U6_Etapa_2.md` |
+| Informe tecnico integral U6 Etapa 2 (PDF) | `Ecommify_Database_Design/docs/Informe_Tecnico_Integral_U6_Etapa_2.pdf` |
+| Presentacion ejecutiva final U6 | `Ecommify_Database_Design/docs/Presentacion_Ejecutiva_U6_Etapa_2.pptx` |
+| Guion del video final U6 | `Ecommify_Database_Design/docs/Guion_Video_Final_U6_Etapa_2.md` |
 | Pruebas de rendimiento consolidadas | `Ecommify_Database_Design/docs/Pruebas_Rendimiento_Consolidadas_U6.md` |
 | Implementacion tecnica U5 | `Ecommify_Database_Design/docs/Documento_Tecnico_Implementacion_U5_Actividad_2.md` |
 | Evidencia cloud Supabase | `Ecommify_Database_Design/docs/Evidencia_Migracion_Cloud_Supabase.md` |
@@ -142,6 +145,4 @@ Luego revisar los README tecnicos de cada motor:
 ## Notas de seguridad y entrega
 
 - `Ecommify_Database_Design/docker/.env` esta ignorado por Git.
-- `Ecommify_Database_Design/docker/.env.example` contiene credenciales locales de ejemplo.
-- Las credenciales reales de Supabase y Atlas no deben versionarse.
-- Las pruebas de carga concurrente formales quedan documentadas como siguiente mejora; el repositorio contiene benchmarks de consulta y evidencias de rendimiento antes/despues.
+-

@@ -328,7 +328,19 @@ MongoDB Atlas quedo validado como destino documental:
 | Falla del job de sincronizacion | PostgreSQL conserva verdad; MongoDB queda congelado hasta reintento. | Consistencia de origen | Dashboards/documentos no se actualizan temporalmente. |
 | Error de carga documental | `upsert` e indices unicos evitan duplicacion. | Consistencia logica derivada | Reproceso batch puede tomar tiempo. |
 
-### 5.2 Consistencia eventual y mitigacion
+### 5.2 Escenarios operacionales criticos del negocio
+
+Mas alla de las fallas de infraestructura, la arquitectura debe responder a escenarios operacionales concretos donde la tension entre consistencia (C) y disponibilidad (A) cambia segun el objetivo del negocio. Se analizan tres escenarios representativos de Ecommify.
+
+| Escenario | Prioridad CAP | Modulo afectado | Configuracion recomendada | Trade-off aceptado |
+|---|---|---|---|---|
+| **Black Friday (pico de trafico)** | A en lectura / C en escritura | Catalogo y dashboards (Atlas) + ordenes/pagos (Supabase) | Atlas: `readPreference: secondaryPreferred`, `maxStalenessSeconds: 90`, cache Redis delante del catalogo. Supabase: pool de conexiones, replicas de lectura para reportes, escritura siempre en primary con `read committed`. | El catalogo y los dashboards pueden mostrar stock/metricas con segundos de desfase, pero las ordenes y pagos nunca se confirman de forma inconsistente. |
+| **Auditoria financiera** | C estricta | Ordenes, pagos e items (Supabase) | Lectura desde primary con `SERIALIZABLE` o `REPEATABLE READ`; bloquear lectura desde MongoDB para cifras contables; congelar ventana de sincronizacion durante el corte. | Menor disponibilidad/latencia durante la auditoria a cambio de cifras exactas y reproducibles. No se aceptan valores derivados de la capa documental. |
+| **Cierre de mes / reporting analitico** | A (tolerante a desfase) | Vistas materializadas + colecciones derivadas | Refrescar vistas materializadas fuera de hora pico, ejecutar el job de sync, servir dashboards desde Atlas `secondaryPreferred`. | Los reportes reflejan el estado al ultimo refresh; se acepta consistencia eventual a cambio de no impactar el OLTP transaccional. |
+
+La regla transversal es: **toda cifra con valor legal o financiero se resuelve en PostgreSQL con consistencia fuerte; toda lectura de experiencia o analitica tolera consistencia eventual y prioriza disponibilidad**. Black Friday no relaja la consistencia de pagos; solo relaja la frescura del catalogo y los dashboards.
+
+### 5.3 Consistencia eventual y mitigacion
 
 MongoDB acepta consistencia eventual porque sus datos son derivados. La ventana de inconsistencia corresponde al tiempo entre un cambio en PostgreSQL y la siguiente sincronizacion. En Olist historico esto no afecta el negocio; en produccion si debe controlarse.
 
@@ -341,7 +353,7 @@ Mitigaciones recomendadas:
 - Usar `secondaryPreferred` solo para dashboards tolerantes a desfase.
 - Definir SLA de frescura por coleccion, por ejemplo catalogo menor a 5 minutos y dashboards menor a 30 minutos.
 
-### 5.3 Reflexion sobre la seleccion tecnologica
+### 5.4 Reflexion sobre la seleccion tecnologica
 
 La seleccion fue correcta por modulo. PostgreSQL no solo almacena datos relacionales: aporta restricciones, PostGIS, `pg_trgm`, vistas materializadas y planes de ejecucion eficientes. MongoDB no reemplaza ese nucleo; brilla cuando el consumo necesita documentos listos para lectura.
 
@@ -351,7 +363,7 @@ Una arquitectura 100% NoSQL no seria recomendable para Ecommify. Pagos, ordenes,
 
 Lo que cambiaria en una version productiva no es la seleccion de motores, sino el mecanismo de sincronizacion. El batch manual debe evolucionar a pipeline incremental con observabilidad y reintentos.
 
-### 5.4 Lecciones aprendidas
+### 5.5 Lecciones aprendidas
 
 | Leccion | Explicacion |
 |---|---|
@@ -433,31 +445,4 @@ Para produccion, el proyecto debe evolucionar en tres frentes: pruebas formales 
 
 ## 8. Referencias y anexos
 
-### 8.1 Artefactos internos del repositorio
-
-| Artefacto | Uso en este informe |
-|---|---|
-| `README.md` | Contexto general del proyecto y estructura. |
-| `Ecommify_Database_Design/README.md` | Fuente de verdad tecnica, arquitectura, secuencia de artefactos y decisiones. |
-| `docs/Documento_Tecnico_Implementacion_U5_Actividad_2.md` | Evidencias de implementacion, rendimiento y cloud. |
-| `docs/Pruebas_Rendimiento_Consolidadas_U6.md` | Consolidacion de benchmarks, validaciones cloud, fuentes de evidencia y limitaciones de pruebas de carga. |
-| `docs/Evidencia_Migracion_Cloud_Supabase.md` | Validacion Supabase, conteos, extensiones e indices. |
-| `docs/Evidencia_Migracion_Cloud_MongoDB_Atlas.md` | Validacion Atlas, colecciones, conteos e indices. |
-| `docs/Actividad_U3_Etapa_2.md` | Estrategia de sharding, replica sets y consistencia eventual. |
-| `docs/Actividad_U4_Etapa_2.md` | Optimizaciones, indices especializados y particionamiento propuesto. |
-| `postgresql/evidencias.md` | Evidencias PostgreSQL locales. |
-| `mongodb/evidencias.md` | Evidencias MongoDB locales. |
-| `docs/Modelo_Entidad_Relacion.md` | Modelo ER sintetico. |
-
-### 8.2 Referencias tecnicas externas
-
-- PostgreSQL Logical Replication: https://www.postgresql.org/docs/current/logical-replication.html
-- PostgreSQL Logical Decoding: https://www.postgresql.org/docs/current/logicaldecoding.html
-- MongoDB Sharding: https://www.mongodb.com/docs/manual/sharding/
-- MongoDB Shard Keys: https://www.mongodb.com/docs/manual/core/sharding-shard-key/
-- MongoDB Read Preference: https://www.mongodb.com/docs/manual/core/read-preference/
-- MongoDB Read Concern: https://www.mongodb.com/docs/manual/reference/read-concern/
-- MongoDB Write Concern: https://www.mongodb.com/docs/manual/reference/write-concern/
-- MongoDB Causal Consistency: https://www.mongodb.com/docs/manual/core/causal-consistency-read-write-concerns/
-- Supabase Database Webhooks: https://supabase.com/docs/guides/database/webhooks
-- Supabase Realtime Postgres Changes: https://supabase.com/docs/guides/realtime/postgres-changes
+### 8.1 Artefactos internos del
